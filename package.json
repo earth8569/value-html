@@ -1,0 +1,52 @@
+{
+  "name": "value-html",
+  "productName": "Value HTML",
+  "version": "0.2.0",
+  "description": "Obsidian-style graph notebook that stores every note as a readable HTML file",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/lib.test.js",
+    "icon": "node scripts/make-icon.js",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "build": {
+    "appId": "com.earth8569.valuehtml",
+    "productName": "Value HTML",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "features.js",
+      "features.css",
+      "lib/**",
+      "assets/**",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "author": "earth8569"
+}
