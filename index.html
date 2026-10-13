@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML Vault</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%239d87ff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#16181d;--panel:#1c1f26;--panel2:#22262e;--fg:#e6e6e6;--muted:#9aa4b2;--border:#323843;--code:#20242c;
+  --accent:#9d87ff;--link:#a99bff;--node:#8b94a3;--tagnode:#4ade80;--danger:#f87171;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#ffffff;--panel:#f6f7f9;--panel2:#eceef2;--fg:#1f2328;--muted:#59636e;--border:#d1d9e0;--code:#f1f2f5;
+  --accent:#7c5cff;--link:#6d4aff;--node:#7a8494;--tagnode:#16a34a;--danger:#dc2626;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+input[type=text],input:not([type]),input[type=search]{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;min-width:0}
+input:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+[hidden]{display:none!important}
+
+#app{display:flex;flex-direction:column;height:100%}
+#topbar{display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--panel);border-bottom:1px solid var(--border);height:44px;flex:none}
+.brand{font-weight:700;letter-spacing:.2px}
+.brand b{color:var(--accent)}
+#vaultName{color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg{display:flex}
+.seg button{border-radius:0;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.spacer{flex:1}
+#status{color:var(--muted);font-size:12px;min-width:70px;text-align:right}
+
+#main{display:flex;flex:1;min-height:0}
+#side{width:250px;flex:none;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+#side .head{padding:8px;display:flex;gap:6px}
+#side .head input{flex:1}
+#files{flex:1;overflow:auto;padding:0 4px 12px}
+.folder{display:flex;align-items:center;gap:4px;padding:3px 6px;color:var(--muted);cursor:pointer;user-select:none;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.item{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:6px;cursor:pointer}
+.item:hover{background:var(--panel2)}
+.item.active{background:color-mix(in srgb,var(--accent) 25%,transparent)}
+.item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .x{display:none;padding:0 6px;border:none;background:none;color:var(--muted)}
+.item:hover .x{display:block}
+.item .x:hover{color:var(--danger)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--node)}
+.indent{padding-left:14px}
+
+#center{flex:1;display:flex;min-width:0;min-height:0}
+#notePane{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#graphPane{flex:1;position:relative;min-width:0;min-height:0;border-left:1px solid var(--border);background:var(--bg)}
+body[data-view="note"] #graphPane{display:none}
+body[data-view="graph"] #notePane{display:none}
+body[data-view="graph"] #right{display:none}
+#toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel)}
+#toolbar button{padding:2px 8px;min-width:30px}
+#toolbar .sep{width:1px;background:var(--border);margin:0 4px}
+#toolbar input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--border);border-radius:6px;background:none}
+#noteScroll{flex:1;overflow:auto;padding:24px 32px 120px}
+#noteWrap{max-width:46rem;margin:0 auto}
+#title{width:100%;font-size:2em;font-weight:700;background:none;border:none;padding:0 0 .3em;outline:none;border-bottom:1px solid transparent}
+#title:focus{border-bottom-color:var(--border)}
+#editor{outline:none;min-height:50vh;font-size:16px;line-height:1.65}
+#editor:empty::before{content:"Start writing… type [[ to link to another note";color:var(--muted)}
+
+#right{width:270px;flex:none;background:var(--panel);border-left:1px solid var(--border);overflow:auto;padding:12px;min-height:0}
+#right h4{margin:16px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+#right h4:first-child{margin-top:0}
+#right .row{display:flex;gap:6px;align-items:center;margin:4px 0}
+#right input{width:100%}
+#right .lnk{display:block;padding:3px 6px;border-radius:5px;cursor:pointer;color:var(--link);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#right .lnk:hover{background:var(--panel2)}
+#right .lnk.ghost{opacity:.6;font-style:italic}
+#right .meta{color:var(--muted);font-size:12px}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--panel2);border:1px solid var(--border);margin:2px 4px 2px 0;font-size:12px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+
+/* graph */
+#gcanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
+#gcanvas.grabbing{cursor:grabbing}
+#gcanvas.pointer{cursor:pointer}
+#gtools{position:absolute;top:10px;left:10px;display:flex;gap:6px;z-index:2}
+#gtools button{background:color-mix(in srgb,var(--panel) 90%,transparent)}
+#gtools button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#gpanel{position:absolute;top:48px;right:10px;width:290px;max-height:calc(100% - 60px);overflow:auto;background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--border);border-radius:10px;padding:4px 12px 10px;z-index:2;box-shadow:0 8px 30px #0006}
+#gpanel details{border-bottom:1px solid var(--border);padding:6px 0}
+#gpanel details:last-child{border-bottom:none}
+#gpanel summary{cursor:pointer;font-weight:600;padding:4px 0;user-select:none}
+.ctl{display:flex;align-items:center;gap:8px;margin:7px 0;justify-content:space-between}
+.ctl label{flex:1}
+.ctl input[type=range]{width:120px;accent-color:var(--accent)}
+.ctl input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+.ctl input[type=text]{flex:1}
+.grp{display:flex;gap:5px;align-items:center;margin:6px 0}
+.grp input[type=color]{width:28px;height:26px;padding:0;border:1px solid var(--border);border-radius:6px;background:none;flex:none}
+.grp input[type=text]{flex:1;width:0}
+.grp button{padding:2px 6px;flex:none}
+.grp .gname{font-size:11px;color:var(--muted)}
+.grp.hid{opacity:.45}
+#glegend{position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:3px;background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--border);border-radius:8px;padding:6px 10px;z-index:2;max-width:260px;font-size:12px}
+#glegend .lg{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+#glegend .lg.hid{opacity:.4;text-decoration:line-through}
+#glegend .cnt{color:var(--muted);margin-left:auto;padding-left:10px}
+#ginfo{position:absolute;right:12px;bottom:8px;color:var(--muted);font-size:12px}
+
+/* link autocomplete */
+#lpop{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-width:220px;max-width:340px;box-shadow:0 8px 30px #0008;overflow:hidden}
+#lpop div{padding:5px 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lpop div.sel,#lpop div:hover{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+#lpop .new{color:var(--muted)}
+
+/* modal + toast + welcome */
+#modal,#welcome{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:100}
+#welcome{background:var(--bg);z-index:90}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;width:min(420px,92vw)}
+.box h3{margin:0 0 8px}
+.box p{margin:0 0 12px;color:var(--muted)}
+.box input{width:100%;margin-bottom:12px}
+.box .row{display:flex;justify-content:flex-end;gap:8px}
+#welcome .box{width:min(560px,92vw);padding:28px 32px}
+#welcome h1{margin:0 0 4px;font-size:28px}
+#welcome .btns{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+#welcome .btns button{padding:12px 14px;text-align:left}
+#welcome .btns small{display:block;color:var(--muted);font-weight:400}
+#welcome .btns button.primary small{color:#fffc}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--border);padding:8px 14px;border-radius:8px;z-index:200;box-shadow:0 6px 20px #0006}
+
+@media (max-width:1100px){#right{display:none}}
+@media (max-width:760px){#side{display:none}#graphPane{border-left:none}}
+
+/*CONTENT_CSS_APP*/
+</style>
+</head>
+<body data-view="split">
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><b>◈</b> HTML Vault</div>
+    <div id="vaultName"></div>
+    <div class="seg" id="viewSeg">
+      <button data-view="note">Note</button>
+      <button data-view="split" class="on">Split</button>
+      <button data-view="graph">Graph</button>
+    </div>
+    <div class="spacer"></div>
+    <span id="status"></span>
+    <button id="btnNew" class="primary" title="Ctrl+Alt+N">+ New note</button>
+    <button id="btnReload" title="Re-scan the vault folder">↻</button>
+    <button id="btnTheme" title="Toggle light / dark">◐</button>
+    <button id="btnVault">Vaults…</button>
+  </header>
+  <div id="main">
+    <aside id="side">
+      <div class="head"><input id="fsearch" type="search" placeholder="Search notes…  (tag:#x  path:folder)"></div>
+      <div id="files"></div>
+    </aside>
+    <section id="center">
+      <div id="notePane">
+        <div id="toolbar"></div>
+        <div id="noteScroll"><div id="noteWrap">
+          <input id="title" type="text" spellcheck="false" placeholder="Untitled">
+          <div id="editor" contenteditable="true" spellcheck="true"></div>
+        </div></div>
+      </div>
+      <div id="graphPane">
+        <canvas id="gcanvas"></canvas>
+        <div id="gtools">
+          <button id="gGear" title="Graph settings">⚙ Settings</button>
+          <button id="gFit" title="Zoom to fit">⤢ Fit</button>
+          <button id="gAnim" title="Re-run the layout">▶ Animate</button>
+          <button id="gLocal" title="Only show notes near the open note">◎ Local</button>
+        </div>
+        <div id="gpanel" hidden></div>
+        <div id="glegend"></div>
+        <div id="ginfo"></div>
+      </div>
+    </section>
+    <aside id="right"></aside>
+  </div>
+</div>
+
+<div id="lpop" hidden></div>
+<div id="modal" hidden><div class="box"><h3 id="mTitle"></h3><p id="mMsg"></p><input id="mInput"><div class="row"><button id="mCancel">Cancel</button><button id="mOk" class="primary">OK</button></div></div></div>
+<div id="welcome" hidden><div class="box">
+  <h1><b style="color:var(--accent)">◈</b> HTML Vault</h1>
+  <div style="color:var(--muted)">A graph-based notebook. Every note is a real, readable <code>.html</code> file you can open in any browser.</div>
+  <div class="btns">
+    <button id="wOpen" class="primary">Open a vault folder<small>Pick any folder. Notes are read from and saved to it as .html files. (Chrome / Edge)</small></button>
+    <button id="wReopen" hidden>Reopen last vault<small id="wReopenName"></small></button>
+    <button id="wDemo">Try the demo vault<small>Sample notes kept in this browser's storage, no folder needed</small></button>
+  </div>
+  <p id="wNote" style="color:var(--muted);margin:14px 0 0;font-size:12px"></p>
+</div></div>
+<div id="toast" hidden></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   HTML Vault, an Obsidian-style graph notebook that stores notes as HTML.
+   ===================================================================== */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const lc=s=>String(s).toLowerCase();
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
+const PALETTE=['#f59e0b','#a78bfa','#34d399','#f472b6','#60a5fa','#f87171','#2dd4bf','#facc15'];
+
+const DEFAULT_SETTINGS={
+  search:'',showTags:false,showUnresolved:true,showOrphans:true,local:false,depth:2,
+  nodeSize:4,linkWidth:1,labelThreshold:0.7,arrows:false,
+  center:0.05,repel:700,linkForce:0.35,linkDistance:80,
+  separate:true,separation:0.22
+};
+
+/* ---------------------------------------------------------------- state */
+const S={
+  backend:null,notes:new Map(),byName:new Map(),backlinks:new Map(),
+  active:null,dirty:false,cfg:{settings:{...DEFAULT_SETTINGS},groups:[]},
+  collapsed:new Set(),view:'split',gearOpen:false
+};
+
+/* --------------------------------------------- shared content styling
+   The same rules style the editor (scope "#editor") and every saved
+   .html file (scope "article"), so a note looks the same in both. */
+const CONTENT_RULES=`
+h1,h2,h3,h4{line-height:1.25;margin:1.3em 0 .45em}
+h1{font-size:1.9em}h2{font-size:1.5em}h3{font-size:1.25em}h4{font-size:1.1em}
+p,ul,ol,blockquote,pre,table{margin:.6em 0}
+a{color:var(--link)}
+a.wikilink{text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--link) 45%,transparent)}
+a.wikilink.unresolved{opacity:.7;border-bottom-style:dashed}
+blockquote{border-left:3px solid var(--accent);margin-left:0;padding:.05em 1em;color:var(--muted)}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+pre{background:var(--code);padding:.8em 1em;border-radius:8px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+pre code{background:none;padding:0}
+mark{background:#fde04766;color:inherit;padding:0 .15em;border-radius:3px}
+table{border-collapse:collapse}
+th,td{border:1px solid var(--border);padding:.35em .7em;min-width:4em;vertical-align:top}
+th{background:var(--code);text-align:left}
+hr{border:0;border-top:1px solid var(--border);margin:1.4em 0}
+img{max-width:100%;border-radius:6px}
+.callout{border:1px solid var(--border);border-left:4px solid var(--accent);background:var(--code);border-radius:6px;padding:.4em 1em;margin:.9em 0}
+.callout>:first-child{margin-top:.3em}.callout>:last-child{margin-bottom:.3em}
+li:has(>input[type=checkbox]){list-style:none;margin-left:-1.3em}
+li>input[type=checkbox]{margin-right:.5em;accent-color:var(--accent)}
+.hv-meta{color:var(--muted);font-size:.85em;margin:-.4em 0 1.2em}
+`;
+function scopedCss(scope){
+  return CONTENT_RULES.replace(/(^|})\s*([^{}]+)\{/g,(m,p,sel)=>p+'\n'+sel.split(',').map(s=>scope+' '+s.trim()).join(',')+'{');
+}
+const FILE_CSS=`:root{--fg:#1f2328;--bg:#fff;--muted:#59636e;--border:#d1d9e0;--code:#f1f2f5;--accent:#7c5cff;--link:#6d4aff}
+@media(prefers-color-scheme:dark){:root{--fg:#e6e6e6;--bg:#16181d;--muted:#9aa4b2;--border:#323843;--code:#20242c;--accent:#9d87ff;--link:#a99bff}}
+body{margin:2.5rem auto;max-width:46rem;padding:0 1rem;font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--fg);background:var(--bg)}`+scopedCss('article');
+$('style').textContent=$('style').textContent.replace('/*CONTENT_CSS_APP*/',scopedCss('#editor'));
+
+/* ------------------------------------------------------ small helpers */
+function toast(msg,ms=2200){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,ms)}
+function ask(title,{value='',message='',confirm=false,ok='OK'}={}){
+  return new Promise(res=>{
+    const m=$('#modal'),inp=$('#mInput');
+    $('#mTitle').textContent=title;$('#mMsg').textContent=message;$('#mMsg').hidden=!message;
+    inp.hidden=confirm;inp.value=value;$('#mOk').textContent=ok;m.hidden=false;
+    if(!confirm){inp.focus();inp.select()}else $('#mOk').focus();
+    const done=v=>{m.hidden=true;cleanup();res(v)};
+    const okf=()=>done(confirm?true:inp.value);
+    const key=e=>{if(e.key==='Enter'){e.preventDefault();okf()}else if(e.key==='Escape')done(null)};
+    const cleanup=()=>{$('#mOk').onclick=$('#mCancel').onclick=null;m.removeEventListener('keydown',key)};
+    $('#mOk').onclick=okf;$('#mCancel').onclick=()=>done(null);m.addEventListener('keydown',key);
+  });
+}
+function relPath(fromDir,toPath){
+  const a=fromDir?fromDir.split('/'):[],b=toPath.split('/');let i=0;
+  while(i<a.length&&i<b.length-1&&a[i]===b[i])i++;
+  return [...Array(a.length-i).fill('..'),...b.slice(i)].map(encodeURIComponent).join('/');
+}
+const sanitizeName=n=>n.replace(/[\\:*?"<>|#^\[\]]/g,'').replace(/\s+/g,' ').trim();
+
+/* ------------------------------------------------------ sanitising HTML
+   Vault folders may hold files from anywhere, so we strip scripts and
+   event handlers before anything touches the live document. */
+const BAD_TAGS='script,style,meta,link,iframe,frame,object,embed,base,form,noscript,title';
+function sanitizeTree(root,{keepStyle=true}={}){
+  root.querySelectorAll(BAD_TAGS).forEach(e=>e.remove());
+  root.querySelectorAll('*').forEach(e=>{
+    for(const a of [...e.attributes]){
+      const n=a.name.toLowerCase(),v=a.value.trim().toLowerCase();
+      let keep=['href','src','alt','title','colspan','rowspan','type','checked','data-link','data-kind'].includes(n)||(keepStyle&&(n==='class'||n==='style'));
+      if(n.startsWith('on'))keep=false;
+      if((n==='href'||n==='src')&&/^(javascript|vbscript):/.test(v))keep=false;
+      if(n==='src'&&/^data:(?!image\/)/.test(v))keep=false;
+      if(n==='type'&&!(e.tagName==='INPUT'&&v==='checkbox'))keep=false;
+      if(!keep)e.removeAttribute(a.name);
+    }
+    if(e.tagName==='INPUT'&&e.getAttribute('type')!=='checkbox')e.remove();
+    if(e.tagName==='A'&&/^https?:/i.test(e.getAttribute('href')||'')){e.setAttribute('target','_blank');e.setAttribute('rel','noopener noreferrer')}
+  });
+  return root;
+}
+
+/* --------------------------------------------------- note file format */
+function parseNote(path,html,mtime){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const meta=n=>doc.querySelector(`meta[name="${n}"]`)?.getAttribute('content')||'';
+  const slash=path.lastIndexOf('/');
+  const dir=slash<0?'':path.slice(0,slash);
+  const file=path.slice(slash+1);
+  const name=file.replace(/\.html?$/i,'');
+  const art=doc.querySelector('article')||doc.body;
+  art.querySelectorAll('.note-title,.hv-meta').forEach(e=>e.remove());
+  sanitizeTree(art);
+  const links=new Set();
+  art.querySelectorAll('a').forEach(a=>{
+    let l=a.getAttribute('data-link');
+    if(!l){const h=a.getAttribute('href')||'';
+      if(h&&!/^[a-z][a-z0-9+.-]*:/i.test(h)&&!h.startsWith('#')&&/\.html?(#.*)?$/i.test(h)){
+        try{l=decodeURIComponent(h.split('#')[0]).split('/').pop().replace(/\.html?$/i,'')}catch{}
+        if(l)a.setAttribute('data-link',l);
+      }}
+    if(l)links.add(l);
+  });
+  const text=(art.textContent||'');
+  const tags=meta('hv:tags').split(',').map(s=>s.trim().replace(/^#/,'')).filter(Boolean);
+  const all=new Set(tags.map(lc));
+  for(const m of text.matchAll(/(?:^|\s)#([A-Za-z][\w\/-]*)/g))all.add(lc(m[1]));
+  return {path,dir,name,mtime,tags,allTags:[...all],links:[...links],
+    body:art.innerHTML.trim(),text:lc(name+' '+text),
+    created:meta('hv:created')||new Date(mtime||Date.now()).toISOString(),
+    updated:meta('hv:updated')||new Date(mtime||Date.now()).toISOString()};
+}
+function fixLinksForSave(html,dir){
+  const d=document.createElement('div');d.innerHTML=html;
+  d.querySelectorAll('a[data-link]').forEach(a=>{
+    const t=S.byName.get(lc(a.dataset.link));
+    a.classList.remove('unresolved');a.classList.add('wikilink');
+    a.setAttribute('href',t?relPath(dir,t.path):encodeURIComponent(a.dataset.link)+'.html');
+  });
+  d.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked?c.setAttribute('checked',''):c.removeAttribute('checked'));
+  d.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));
+  d.querySelectorAll('[class=""]').forEach(e=>e.removeAttribute('class'));
+  return d.innerHTML.replace(/<\/(p|h[1-6]|ul|ol|li|blockquote|pre|table|thead|tbody|tr|div|hr)>/g,'</$1>\n').replace(/<hr>/g,'<hr>\n').trim();
+}
+function serializeNote(n){
+  const tagLine=n.tags.length?`<p class="hv-meta">${n.tags.map(t=>'#'+esc(t)).join(' ')}</p>\n`:'';
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(n.name)}</title>
+<meta name="generator" content="HTML Vault">
+<meta name="hv:tags" content="${esc(n.tags.join(', '))}">
+<meta name="hv:created" content="${esc(n.created)}">
+<meta name="hv:updated" content="${esc(n.updated)}">
+<style>
+${FILE_CSS}
+</style>
+</head>
+<body>
+<article>
+<h1 class="note-title">${esc(n.name)}</h1>
+${tagLine}${fixLinksForSave(n.body,n.dir)}
+</article>
+</body>
+</html>
+`;
+}
+function wikify(html){
+  return html.replace(/\[\[([^\]|<>]+?)(?:\|([^\]<>]+))?\]\]/g,(m,n,alias)=>`<a class="wikilink" data-link="${esc(n.trim())}" href="">${esc((alias||n).trim())}</a>`);
+}
+
+/* ---------------------------------------------------------- backends */
+const idb={
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('htmlvault',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+  async get(k){try{const db=await this.open();return await new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch{return null}},
+  async set(k,v){try{const db=await this.open();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch{}}
+};
+class FSBackend{
+  constructor(root){this.root=root;this.kind='fs';this.name=root.name}
+  async scan(){
+    const out=[];
+    const walk=async(dir,prefix)=>{
+      for await(const [name,h] of dir.entries()){
+        if(name.startsWith('.')||name==='node_modules')continue;
+        if(h.kind==='directory')await walk(h,prefix+name+'/');
+        else if(/\.html?$/i.test(name)){const f=await h.getFile();out.push({path:prefix+name,text:await f.text(),mtime:f.lastModified})}
+      }
+    };
+    await walk(this.root,'');return out;
+  }
+  async _dir(parts,create){let d=this.root;for(const p of parts)d=await d.getDirectoryHandle(p,{create});return d}
+  async write(path,text){
+    const parts=path.split('/'),fn=parts.pop();
+    const d=await this._dir(parts,true),fh=await d.getFileHandle(fn,{create:true});
+    const w=await fh.createWritable();await w.write(text);await w.close();
+    return (await fh.getFile()).lastModified;
+  }
+  async remove(path){const parts=path.split('/'),fn=parts.pop();const d=await this._dir(parts,false);await d.removeEntry(fn)}
+  async readConfig(){try{const d=await this._dir(['.htmlvault'],false);const fh=await d.getFileHandle('graph.json');return JSON.parse(await(await fh.getFile()).text())}catch{return null}}
+  async writeConfig(o){await this.write('.htmlvault/graph.json',JSON.stringify(o,null,2))}
+}
+const LS='hv:demo:';
+class LocalBackend{
+  constructor(){this.kind='local';this.name='Demo vault (browser storage)'}
+  async scan(){const out=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(LS+'f:')){const o=JSON.parse(localStorage.getItem(k));out.push({path:k.slice(LS.length+2),text:o.text,mtime:o.mtime})}}return out}
+  async write(path,text){const mtime=Date.now();localStorage.setItem(LS+'f:'+path,JSON.stringify({text,mtime}));return mtime}
+  async remove(path){localStorage.removeItem(LS+'f:'+path)}
+  async readConfig(){try{return JSON.parse(localStorage.getItem(LS+'cfg'))}catch{return null}}
+  async writeConfig(o){localStorage.setItem(LS+'cfg',JSON.stringify(o))}
+}
+
+/* ---------------------------------------------------- index + queries */
+function reindex(){
+  S.byName=new Map();S.backlinks=new Map();
+  for(const n of S.notes.values()){const k=lc(n.name);if(!S.byName.has(k))S.byName.set(k,n)}
+  for(const n of S.notes.values())for(const l of n.links){
+    const t=S.byName.get(lc(l));
+    if(t&&t!==n){if(!S.backlinks.has(t.path))S.backlinks.set(t.path,[]);S.backlinks.get(t.path).push(n)}
+  }
+}
+/* Obsidian-like query: space-separated terms are AND-ed.
+   tag:#x  #x  path:folder  file:name  or any word (title + content). */
+function matches(note,q){
+  q=q.trim();if(!q)return true;
+  return q.split(/\s+/).every(tok=>{
+    const t=lc(tok);let m;
+    if((m=/^tag:#?(.+)$/.exec(t))||(m=/^#(.+)$/.exec(t)))return note.allTags.some(x=>x===m[1]||x.startsWith(m[1]+'/'));
+    if((m=/^path:(.+)$/.exec(t)))return lc(note.path).includes(m[1]);
+    if((m=/^file:(.+)$/.exec(t)))return lc(note.name).includes(m[1]);
+    return note.text.includes(t);
+  });
+}
+function groupOf(n){for(const g of S.cfg.groups)if(g.query.trim()&&matches(n,g.query))return g;return null}
+function recolor(){for(const g of S.cfg.groups)g._count=0;for(const n of S.notes.values()){n._group=groupOf(n);if(n._group)n._group._count++}}
+const colorOf=n=>n._group?n._group.color:null;
+
+/* ---------------------------------------------------------- persistence */
+const saveCfg=debounce(()=>{
+  const out={settings:S.cfg.settings,groups:S.cfg.groups.map(({name,query,color,hidden})=>({name,query,color,hidden:!!hidden}))};
+  S.backend?.writeConfig(out).catch(()=>{});
+},400);
+function autoGroups(){
+  const dirs=new Map(),tags=new Map();
+  for(const n of S.notes.values()){
+    if(n.dir)dirs.set(n.dir.split('/')[0],(dirs.get(n.dir.split('/')[0])||0)+1);
+    for(const t of n.allTags)tags.set(t,(tags.get(t)||0)+1);
+  }
+  let src=[...dirs].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([d])=>({name:d,query:'path:'+d}));
+  if(src.length<2)src=[...tags].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t])=>({name:'#'+t,query:'tag:#'+t}));
+  return src.map((g,i)=>({...g,color:PALETTE[i%PALETTE.length],hidden:false}));
+}
+
+/* ====================================================== vault lifecycle */
+async function useBackend(be){
+  S.backend=be;S.notes.clear();
+  for(const f of await be.scan()){const n=parseNote(f.path,f.text,f.mtime);if(!S.notes.has(n.path))S.notes.set(n.path,n)}
+  if(!S.notes.size){
+    const n=makeNoteObj('Welcome','',`<h2>Welcome</h2><p>This vault is empty. Create a note with <strong>+ New note</strong>, link notes with <code>[[double brackets]]</code>, and watch them appear in the graph.</p>`);
+    await be.write(n.path,serializeNote(n));S.notes.set(n.path,parseNote(n.path,serializeNote(n),Date.now()));
+  }
+  reindex();
+  const c=await be.readConfig();
+  S.cfg=c?{settings:{...DEFAULT_SETTINGS,...c.settings},groups:(c.groups||[]).map(g=>({...g}))}:{settings:{...DEFAULT_SETTINGS},groups:autoGroups()};
+  $('#welcome').hidden=true;$('#vaultName').textContent=be.name;
+  G.pos.clear();G.fitted=false;
+  buildGraphPanel();
+  const first=S.byName.get('welcome')||[...S.notes.values()].sort((a,b)=>b.mtime-a.mtime)[0];
+  S.active=null;await openNote(first.path);
+  refreshAll();
+}
+function refreshAll(){recolor();renderSidebar();renderRight();rebuildGraph();renderGroupsUI();renderLegend()}
+
+async function reloadVault(){
+  if(!S.backend)return;
+  await flushSave();
+  const files=await S.backend.scan();const seen=new Set();let changed=false;
+  for(const f of files){
+    seen.add(f.path);const old=S.notes.get(f.path);
+    if(!old||old.mtime!==f.mtime){S.notes.set(f.path,parseNote(f.path,f.text,f.mtime));changed=true;
+      if(old&&f.path===S.active)loadActiveIntoEditor()}
+  }
+  for(const p of [...S.notes.keys()])if(!seen.has(p)){S.notes.delete(p);changed=true}
+  if(!S.notes.has(S.active)){S.active=null;const f=[...S.notes.values()][0];if(f)await openNote(f.path)}
+  if(changed){reindex();refreshAll();toast('Vault reloaded')}
+}
+
+/* ========================================================= note CRUD */
+function makeNoteObj(name,dir,body,tags=[]){
+  const now=new Date().toISOString();
+  return {path:(dir?dir+'/':'')+name+'.html',dir,name,tags,body,created:now,updated:now,mtime:Date.now()};
+}
+function splitFull(full){
+  const parts=full.split('/').map(sanitizeName).filter(Boolean);
+  const name=parts.pop()||'';return {dir:parts.join('/'),name};
+}
+function uniqueName(base){let n=base,i=1;while(S.byName.has(lc(n)))n=`${base} ${i++}`;return n}
+async function createNote(full,{body='<p><br></p>',tags=[],open=true}={}){
+  await flushSave();
+  const {dir,name}=splitFull(full);
+  if(!name)return null;
+  const ex=S.byName.get(lc(name));
+  if(ex){if(open)await openNote(ex.path);return ex}
+  const obj=makeNoteObj(name,dir,body,tags);
+  const text=serializeNote(obj);
+  obj.mtime=await S.backend.write(obj.path,text);
+  const note=parseNote(obj.path,text,obj.mtime);
+  S.notes.set(note.path,note);reindex();refreshAll();
+  if(open){await openNote(note.path);$('#title').select()}
+  return note;
+}
+async function deleteNote(path){
+  const n=S.notes.get(path);if(!n)return;
+  if(!await ask('Delete note?',{message:`“${n.name}” will be removed from the vault folder.`,confirm:true,ok:'Delete'}))return;
+  if(S.active===path){S.dirty=false;clearTimeout(saveTimer)}
+  await S.backend.remove(path);S.notes.delete(path);reindex();
+  if(S.active===path){S.active=null;const f=[...S.notes.values()][0];if(f)await openNote(f.path);else await createNote('Untitled')}
+  refreshAll();toast('Deleted');
+}
+async function renameNote(note,newName){
+  newName=sanitizeName(newName);
+  if(!newName||newName===note.name)return false;
+  const clash=S.byName.get(lc(newName));
+  if(clash&&clash!==note){toast('A note with that name already exists');return false}
+  await flushSave();
+  const oldName=note.name,oldPath=note.path,newPath=(note.dir?note.dir+'/':'')+newName+'.html';
+  // rewrite links in every other note that points here
+  const targets=[...S.notes.values()].filter(n=>n!==note&&n.links.some(l=>lc(l)===lc(oldName)));
+  const cur=S.notes.get(oldPath);
+  const moved={...cur,name:newName,path:newPath,updated:new Date().toISOString()};
+  S.notes.delete(oldPath);S.notes.set(newPath,moved);reindex();
+  const text=serializeNote(moved);
+  moved.mtime=await S.backend.write(newPath,text);
+  await S.backend.remove(oldPath);
+  S.notes.set(newPath,parseNote(newPath,text,moved.mtime));
+  for(const t of targets){
+    const d=document.createElement('div');d.innerHTML=t.body;
+    d.querySelectorAll('a[data-link]').forEach(a=>{
+      if(lc(a.dataset.link)===lc(oldName)){
+        if(a.textContent.trim()===oldName)a.textContent=newName;
+        a.dataset.link=newName;
+      }
+    });
+    const nn={...t,body:d.innerHTML};
+    S.notes.set(t.path,nn);reindex();
+    const tx=serializeNote(nn);nn.mtime=await S.backend.write(t.path,tx);
+    S.notes.set(t.path,parseNote(t.path,tx,nn.mtime));
+  }
+  reindex();S.active=newPath;G.pos.set(newPath,G.pos.get(oldPath));G.pos.delete(oldPath);
+  refreshAll();toast(targets.length?`Renamed, updated ${targets.length} linking note${targets.length>1?'s':''}`:'Renamed');
+  return true;
+}
+
+/* ====================================================== editor + saving */
+const editor=$('#editor'),titleEl=$('#title');
+let saveTimer=null;
+function setStatus(t){$('#status').textContent=t}
+function scheduleSave(){S.dirty=true;setStatus('Editing…');clearTimeout(saveTimer);saveTimer=setTimeout(()=>flushSave(),800)}
+async function flushSave(){
+  clearTimeout(saveTimer);
+  if(!S.dirty||!S.active)return;
+  const cur=S.notes.get(S.active);if(!cur)return;
+  S.dirty=false;
+  const body=fixLinksForSave(editor.innerHTML,cur.dir);
+  const obj={...cur,body,updated:new Date().toISOString()};
+  try{
+    const text=serializeNote(obj);
+    obj.mtime=await S.backend.write(cur.path,text);
+    const fresh=parseNote(cur.path,text,obj.mtime);
+    S.notes.set(cur.path,fresh);reindex();
+    recolor();renderSidebar();renderRight();rebuildGraphSoft();renderGroupsUI();renderLegend();
+    setStatus('Saved ✓');
+  }catch(e){console.error(e);setStatus('Save failed!');toast('Could not save: '+e.message,4000);S.dirty=true}
+}
+function decorateLinks(){
+  editor.querySelectorAll('a[data-link]').forEach(a=>{
+    a.classList.add('wikilink');a.classList.toggle('unresolved',!S.byName.has(lc(a.dataset.link)));
+  });
+}
+function loadActiveIntoEditor(){
+  const n=S.notes.get(S.active);if(!n)return;
+  editor.innerHTML=n.body||'<p><br></p>';decorateLinks();
+  titleEl.value=n.name;
+}
+async function openNote(path){
+  if(path===S.active)return;
+  await flushSave();
+  if(!S.notes.has(path))return;
+  S.active=path;loadActiveIntoEditor();setStatus('');
+  renderSidebar();renderRight();
+  if(S.cfg.settings.local)rebuildGraph();else{G.dirty=true}
+  $('#noteScroll').scrollTop=0;
+}
+async function openByName(name){
+  const t=S.byName.get(lc(name));
+  if(t)await openNote(t.path);else await createNote(name);
+}
+editor.addEventListener('input',()=>{checkLinkTrigger();scheduleSave()});
+editor.addEventListener('change',scheduleSave);
+editor.addEventListener('click',e=>{
+  const a=e.target.closest('a');
+  if(a&&editor.contains(a)){
+    e.preventDefault();
+    if(a.dataset.link)openByName(a.dataset.link);
+    else if(a.href)window.open(a.href,'_blank','noopener');
+  }
+});
+editor.addEventListener('blur',()=>{closeLP();flushSave()});
+editor.addEventListener('paste',e=>{
+  const cd=e.clipboardData;if(!cd)return;
+  const img=[...cd.files].find(f=>f.type.startsWith('image/'));
+  if(img){e.preventDefault();const r=new FileReader();r.onload=()=>{document.execCommand('insertHTML',false,`<img src="${r.result}" alt="">`);scheduleSave()};r.readAsDataURL(img);return}
+  const html=cd.getData('text/html');
+  if(html){
+    e.preventDefault();
+    const d=new DOMParser().parseFromString(html,'text/html');
+    sanitizeTree(d.body,{keepStyle:false});
+    document.execCommand('insertHTML',false,d.body.innerHTML);scheduleSave();
+  }
+});
+titleEl.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();titleEl.blur();editor.focus()}
+  if(e.key==='Escape'){titleEl.value=S.notes.get(S.active)?.name||'';titleEl.blur()}
+});
+titleEl.addEventListener('change',async()=>{
+  const n=S.notes.get(S.active);if(!n)return;
+  const ok=await renameNote(n,titleEl.value);
+  if(!ok)titleEl.value=S.notes.get(S.active)?.name||'';
+});
+
+/* ---- [[wikilink]] typing + autocomplete ---- */
+const LP={open:false,items:[],idx:0,node:null,start:0,end:0};
+function insertWikilink(node,start,end,name,alias){
+  const r=document.createRange();r.setStart(node,start);r.setEnd(node,end);r.deleteContents();
+  const a=document.createElement('a');
+  a.className='wikilink'+(S.byName.has(lc(name))?'':' unresolved');
+  a.dataset.link=name;a.setAttribute('href','');a.textContent=alias||name;
+  r.insertNode(a);
+  const sp=document.createTextNode(' ');a.after(sp);
+  const sel=getSelection(),nr=document.createRange();nr.setStart(sp,1);nr.collapse(true);sel.removeAllRanges();sel.addRange(nr);
+  scheduleSave();
+}
+function closeLP(){LP.open=false;$('#lpop').hidden=true}
+function checkLinkTrigger(){
+  const sel=getSelection();
+  if(!sel.rangeCount||!sel.isCollapsed)return closeLP();
+  const n=sel.anchorNode;
+  if(!n||n.nodeType!==3||!editor.contains(n)||n.parentElement.closest('a'))return closeLP();
+  const before=n.data.slice(0,sel.anchorOffset);
+  const done=/\[\[([^\[\]\n]+)\]\]$/.exec(before);
+  if(done){
+    const [nm,alias]=done[1].split('|');
+    insertWikilink(n,sel.anchorOffset-done[0].length,sel.anchorOffset,nm.trim(),alias?.trim());
+    return closeLP();
+  }
+  const m=/\[\[([^\[\]\n|]*)$/.exec(before);
+  if(!m)return closeLP();
+  const q=lc(m[1].trim());
+  const names=[...S.notes.values()].map(x=>x.name).filter(x=>!q||lc(x).includes(q))
+    .sort((a,b)=>(lc(a).startsWith(q)?0:1)-(lc(b).startsWith(q)?0:1)||a.localeCompare(b)).slice(0,8);
+  const items=names.map(x=>({name:x,create:false}));
+  if(q&&!S.byName.has(q))items.push({name:m[1].trim(),create:true});
+  if(!items.length)return closeLP();
+  Object.assign(LP,{open:true,items,idx:0,node:n,start:m.index,end:sel.anchorOffset});
+  renderLP();
+}
+function renderLP(){
+  const p=$('#lpop');p.hidden=false;
+  p.innerHTML=LP.items.map((it,i)=>`<div class="${i===LP.idx?'sel':''}${it.create?' new':''}" data-i="${i}">${it.create?'＋ Create “'+esc(it.name)+'”':esc(it.name)}</div>`).join('');
+  const sel=getSelection();let r=null;
+  if(sel.rangeCount){const rc=sel.getRangeAt(0).getClientRects();r=rc[0]||sel.getRangeAt(0).startContainer.parentElement?.getBoundingClientRect()}
+  if(r){p.style.left=Math.min(r.left,innerWidth-350)+'px';p.style.top=(r.bottom+4)+'px'}
+}
+function pickLP(i){
+  const it=LP.items[i];if(!it)return;
+  insertWikilink(LP.node,LP.start,LP.end,it.name);closeLP();
+}
+$('#lpop').addEventListener('mousedown',e=>{e.preventDefault();const d=e.target.closest('[data-i]');if(d)pickLP(+d.dataset.i)});
+editor.addEventListener('keydown',e=>{
+  if(!LP.open)return;
+  if(e.key==='ArrowDown'){e.preventDefault();LP.idx=(LP.idx+1)%LP.items.length;renderLP()}
+  else if(e.key==='ArrowUp'){e.preventDefault();LP.idx=(LP.idx-1+LP.items.length)%LP.items.length;renderLP()}
+  else if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();pickLP(LP.idx)}
+  else if(e.key==='Escape'){e.preventDefault();closeLP()}
+});
+
+/* ---- toolbar ---- */
+const fmt=(cmd,val)=>{editor.focus();document.execCommand(cmd,false,val);scheduleSave()};
+const wrapSel=(tag,attrs='')=>{
+  editor.focus();const s=getSelection();if(!s.rangeCount)return;
+  const d=document.createElement('div');d.appendChild(s.getRangeAt(0).cloneContents());
+  document.execCommand('insertHTML',false,`<${tag}${attrs}>${d.innerHTML||'text'}</${tag}>`);scheduleSave();
+};
+const TOOLS=[
+  ['B','Bold (Ctrl+B)',()=>fmt('bold')],['I','Italic (Ctrl+I)',()=>fmt('italic')],['U','Underline',()=>fmt('underline')],['S','Strikethrough',()=>fmt('strikeThrough')],
+  '|',
+  ['H1','Heading 1',()=>fmt('formatBlock','<h1>')],['H2','Heading 2',()=>fmt('formatBlock','<h2>')],['H3','Heading 3',()=>fmt('formatBlock','<h3>')],['¶','Paragraph',()=>fmt('formatBlock','<p>')],
+  '|',
+  ['• List','Bullet list',()=>fmt('insertUnorderedList')],['1. List','Numbered list',()=>fmt('insertOrderedList')],
+  ['☑ Task','Checklist item',()=>fmt('insertHTML','<ul><li><input type="checkbox"> <br></li></ul>')],
+  ['❝','Quote',()=>fmt('formatBlock','<blockquote>')],['</>','Inline code',()=>wrapSel('code')],['{ }','Code block',()=>fmt('formatBlock','<pre>')],
+  '|',
+  ['🖍','Highlight',()=>wrapSel('mark')],
+  ['color'],
+  ['Table','Insert table',()=>fmt('insertHTML','<table><thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead><tbody><tr><td><br></td><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td><td><br></td></tr></tbody></table><p><br></p>')],
+  ['Callout','Insert callout box',()=>fmt('insertHTML','<div class="callout"><p><strong>Note</strong></p><p><br></p></div><p><br></p>')],
+  ['―','Divider',()=>fmt('insertHorizontalRule')],
+  ['[[ ]]','Link to a note',()=>{editor.focus();document.execCommand('insertText',false,'[[');checkLinkTrigger()}],
+  ['🔗','Web link (Ctrl+K)',async()=>{const sel=getSelection().rangeCount?getSelection().getRangeAt(0).cloneRange():null;const u=await ask('Link address',{value:'https://'});if(!u)return;editor.focus();if(sel){getSelection().removeAllRanges();getSelection().addRange(sel)}document.execCommand('createLink',false,u);scheduleSave()}],
+  ['⌫','Clear formatting',()=>fmt('removeFormat')],
+];
+(function buildToolbar(){
+  const tb=$('#toolbar');
+  for(const t of TOOLS){
+    if(t==='|'){const s=document.createElement('span');s.className='sep';tb.appendChild(s);continue}
+    if(t[0]==='color'){
+      const c=document.createElement('input');c.type='color';c.value='#f59e0b';c.title='Text color';
+      c.addEventListener('mousedown',()=>{c._sel=getSelection().rangeCount?getSelection().getRangeAt(0).cloneRange():null});
+      c.addEventListener('input',()=>{editor.focus();if(c._sel){getSelection().removeAllRanges();getSelection().addRange(c._sel)}document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,c.value);scheduleSave()});
+      tb.appendChild(c);continue;
+    }
+    const b=document.createElement('button');b.textContent=t[0];b.title=t[1];
+    b.addEventListener('mousedown',e=>e.preventDefault());
+    b.addEventListener('click',t[2]);tb.appendChild(b);
+  }
+})();
+document.addEventListener('keydown',e=>{
+  const mod=e.ctrlKey||e.metaKey;
+  if(mod&&e.key==='s'){e.preventDefault();flushSave().then(()=>toast('Saved'))}
+  else if(mod&&e.key==='k'&&document.activeElement===editor){e.preventDefault();TOOLS.find(t=>t[0]==='🔗')[2]()}
+  else if(mod&&e.altKey&&e.key==='n'){e.preventDefault();newNotePrompt()}
+  else if(mod&&e.key==='g'){e.preventDefault();setView(S.view==='graph'?'split':'graph')}
+});
+
+/* ========================================================= left panel */
+const fsearch=$('#fsearch');
+fsearch.addEventListener('input',debounce(renderSidebar,120));
+function buildTree(notes){
+  const root={dirs:new Map(),files:[]};
+  for(const n of notes){let cur=root;if(n.dir)for(const p of n.dir.split('/')){if(!cur.dirs.has(p))cur.dirs.set(p,{dirs:new Map(),files:[]});cur=cur.dirs.get(p)}cur.files.push(n)}
+  return root;
+}
+function renderSidebar(){
+  const q=fsearch.value.trim();
+  let notes=[...S.notes.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  if(q)notes=notes.filter(n=>matches(n,q));
+  const out=[];
+  const item=(n,depth)=>`<div class="item${n.path===S.active?' active':''}" data-path="${esc(n.path)}" style="padding-left:${8+depth*14}px"><span class="dot" style="${colorOf(n)?'background:'+colorOf(n):''}"></span><span class="nm">${esc(n.name)}</span><button class="x" title="Delete">×</button></div>`;
+  const walk=(node,depth,prefix)=>{
+    for(const [d,sub] of [...node.dirs].sort((a,b)=>a[0].localeCompare(b[0]))){
+      const key=prefix+d,open=q||!S.collapsed.has(key);
+      out.push(`<div class="folder" data-folder="${esc(key)}" style="padding-left:${6+depth*14}px">${open?'▾':'▸'} ${esc(d)}</div>`);
+      if(open)walk(sub,depth+1,key+'/');
+    }
+    for(const n of node.files)out.push(item(n,depth));
+  };
+  walk(buildTree(notes),0,'');
+  $('#files').innerHTML=out.join('')||'<div style="padding:12px;color:var(--muted)">No notes</div>';
+}
+$('#files').addEventListener('click',e=>{
+  const x=e.target.closest('.x'),it=e.target.closest('.item'),f=e.target.closest('.folder');
+  if(x&&it){e.stopPropagation();deleteNote(it.dataset.path)}
+  else if(it)openNote(it.dataset.path);
+  else if(f){const k=f.dataset.folder;S.collapsed.has(k)?S.collapsed.delete(k):S.collapsed.add(k);renderSidebar()}
+});
+async function newNotePrompt(){
+  const name=await ask('New note',{value:uniqueName('Untitled'),message:'Tip: use “Folder/Name” to create it inside a folder.'});
+  if(name)await createNote(name);
+}
+$('#btnNew').onclick=newNotePrompt;
+$('#btnReload').onclick=reloadVault;
+window.addEventListener('focus',()=>{if(S.backend?.kind==='fs'&&!S.dirty)reloadVault().catch(()=>{})});
+
+/* ========================================================= right panel */
+function renderRight(){
+  const n=S.notes.get(S.active),box=$('#right');
+  if(!n){box.innerHTML='';return}
+  const back=S.backlinks.get(n.path)||[];
+  const out=n.links.map(l=>({name:l,note:S.byName.get(lc(l))}));
+  const g=n._group;
+  box.innerHTML=`
+    <h4>Properties</h4>
+    <div class="meta">${g?`<span class="dot" style="background:${g.color};display:inline-block"></span> ${esc(g.name||g.query)}`:'No color group'}</div>
+    <div class="row"><input id="tagsIn" type="text" placeholder="tags, comma separated" value="${esc(n.tags.join(', '))}"></div>
+    <div>${n.allTags.map(t=>`<span class="chip" data-tag="${esc(t)}">#${esc(t)}</span>`).join('')}</div>
+    <div class="meta" style="margin-top:6px">Path: ${esc(n.path)}<br>Updated: ${esc(new Date(n.updated).toLocaleString())}</div>
+    <h4>Backlinks (${back.length})</h4>
+    ${back.map(b=>`<span class="lnk" data-open="${esc(b.path)}">${esc(b.name)}</span>`).join('')||'<div class="meta">No notes link here yet</div>'}
+    <h4>Outgoing links (${out.length})</h4>
+    ${out.map(o=>o.note?`<span class="lnk" data-open="${esc(o.note.path)}">${esc(o.note.name)}</span>`:`<span class="lnk ghost" data-create="${esc(o.name)}" title="Click to create">${esc(o.name)}</span>`).join('')||'<div class="meta">None</div>'}
+    <h4>File</h4>
+    <div class="row"><button id="btnDel" style="color:var(--danger)">Delete note</button></div>
+    <div class="meta">Stored as plain HTML, so you can open this file in any browser or editor.</div>`;
+  $('#tagsIn',box).addEventListener('change',e=>{
+    const cur=S.notes.get(S.active);cur.tags=e.target.value.split(',').map(s=>s.trim().replace(/^#/,'')).filter(Boolean);
+    S.dirty=true;flushSave();
+  });
+  $('#btnDel',box).onclick=()=>deleteNote(S.active);
+}
+$('#right').addEventListener('click',e=>{
+  const o=e.target.closest('[data-open]'),c=e.target.closest('[data-create]'),t=e.target.closest('[data-tag]');
+  if(o)openNote(o.dataset.open);
+  else if(c)createNote(c.dataset.create);
+  else if(t){fsearch.value='tag:#'+t.dataset.tag;renderSidebar()}
+});
+
+/* ============================================================ GRAPH === */
+const cv=$('#gcanvas'),ctx=cv.getContext('2d');
+const G={nodes:[],edges:[],adj:new Map(),store:new Map(),pos:new Map(),alpha:1,alphaTarget:0,
+  v:{k:1,x:0,y:0},w:0,h:0,hover:null,drag:null,pan:null,dirty:true,fitted:false,sig:'',theme:{},anchors:new Map()};
+const gs=()=>S.cfg.settings;
+
+function readTheme(){
+  const cs=getComputedStyle(document.documentElement);
+  G.theme={fg:cs.getPropertyValue('--fg').trim(),muted:cs.getPropertyValue('--muted').trim(),node:cs.getPropertyValue('--node').trim(),
+    tag:cs.getPropertyValue('--tagnode').trim(),accent:cs.getPropertyValue('--accent').trim(),bg:cs.getPropertyValue('--bg').trim()};
+  G.dirty=true;
+}
+function resizeGraph(){
+  const r=cv.getBoundingClientRect();if(!r.width||!r.height)return;
+  const dpr=devicePixelRatio||1;
+  if(Math.abs(r.width-G.w)<1&&Math.abs(r.height-G.h)<1)return;
+  const first=!G.w;
+  G.w=r.width;G.h=r.height;cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);
+  if(first||!G.fitted){G.v.x=G.w/2;G.v.y=G.h/2;if(G.nodes.length)fitGraph()}
+  G.dirty=true;
+}
+new ResizeObserver(resizeGraph).observe($('#graphPane'));
+
+/* build the visible graph from notes + filters + groups */
+function computeGraph(){
+  const s=gs(),q=s.search.trim();
+  const vis=new Map();
+  for(const n of S.notes.values()){
+    const g=n._group;if(g&&g.hidden)continue;if(q&&!matches(n,q))continue;
+    vis.set(n.path,{id:n.path,label:n.name,kind:'note',note:n,group:g||null});
+  }
+  const edges=[],seen=new Set();
+  const add=(a,b)=>{const k=a+'\n'+b;if(seen.has(k))return;seen.add(k);edges.push({a,b})};
+  for(const n of S.notes.values()){
+    if(!vis.has(n.path))continue;
+    for(const l of n.links){
+      const t=S.byName.get(lc(l));
+      if(t){if(t!==n&&vis.has(t.path))add(n.path,t.path)}
+      else if(s.showUnresolved){const id='?'+lc(l);if(!vis.has(id))vis.set(id,{id,label:l,kind:'ghost'});add(n.path,id)}
+    }
+    if(s.showTags)for(const t of n.allTags){const id='#'+t;if(!vis.has(id))vis.set(id,{id,label:'#'+t,kind:'tag'});add(n.path,id)}
+  }
+  const adj=new Map();for(const id of vis.keys())adj.set(id,new Set());
+  for(const e of edges){adj.get(e.a).add(e.b);adj.get(e.b).add(e.a)}
+  let keep=new Set(vis.keys());
+  if(!s.showOrphans)for(const [id,a] of adj)if(!a.size)keep.delete(id);
+  if(s.local&&S.active&&vis.has(S.active)){
+    const dist=new Map([[S.active,0]]),qu=[S.active];
+    while(qu.length){const c=qu.shift(),d=dist.get(c);if(d>=s.depth)continue;for(const nb of adj.get(c))if(!dist.has(nb)){dist.set(nb,d+1);qu.push(nb)}}
+    keep=new Set([...keep].filter(id=>dist.has(id)));
+  }
+  return {vis,edges:edges.filter(e=>keep.has(e.a)&&keep.has(e.b)),keep};
+}
+function rebuildGraph(){
+  recolor();
+  const {vis,edges,keep}=computeGraph();
+  const nodes=[];
+  const adj=new Map();for(const id of keep)adj.set(id,new Set());
+  for(const e of edges){adj.get(e.a).add(e.b);adj.get(e.b).add(e.a)}
+  const R=Math.max(120,Math.sqrt(keep.size)*30);
+  for(const id of keep){
+    const d=vis.get(id);let p=G.pos.get(id);
+    if(!p){
+      let base=null;for(const nb of adj.get(id))if(G.pos.get(nb)){base=G.pos.get(nb);break}
+      const a=Math.random()*6.283,r=base?20+Math.random()*30:Math.sqrt(Math.random())*R;
+      p={x:(base?base.x:0)+Math.cos(a)*r,y:(base?base.y:0)+Math.sin(a)*r,vx:0,vy:0};G.pos.set(id,p);
+    }
+    Object.assign(p,{id,label:d.label,kind:d.kind,note:d.note||null,group:d.group||null,deg:adj.get(id).size});
+    nodes.push(p);
+  }
+  const byId=new Map(nodes.map(n=>[n.id,n]));
+  G.nodes=nodes;G.byId=byId;G.adj=adj;
+  G.edges=edges.map(e=>({s:byId.get(e.a),t:byId.get(e.b)}));
+  // anchors for the "separate groups" force
+  const gl=S.cfg.groups.filter(g=>nodes.some(n=>n.group===g));
+  G.anchors=new Map();const ring=Math.max(160,60*gl.length+Math.sqrt(nodes.length)*14);
+  gl.forEach((g,i)=>{const a=-Math.PI/2+i/gl.length*Math.PI*2;G.anchors.set(g,{x:Math.cos(a)*ring,y:Math.sin(a)*ring})});
+  const sig=[...keep].sort().join('|')+edges.length+'|'+gl.map(g=>g.query).join(',')+gs().separate;
+  const changed=sig!==G.sig;G.sig=sig;
+  if(changed){
+    const warm=!G.fitted;
+    if(warm){G.alpha=1;for(let i=0;i<260;i++)tick(true)}
+    G.alpha=Math.max(G.alpha,warm?0.05:0.5);
+    if(warm&&G.w){fitGraph()}
+  }
+  $('#ginfo').textContent=`${nodes.length} nodes · ${edges.length} links`;
+  G.dirty=true;
+}
+/* cheap path used after an autosave: refresh data, only reheat on structural change */
+const rebuildGraphSoft=()=>rebuildGraph();
+
+function tick(prewarm=false){
+  const s=gs(),n=G.nodes,N=n.length,a=G.alpha;
+  const rep=s.repel,cutoff=360*360;
+  for(let i=0;i<N;i++){
+    const p=n[i];
+    for(let j=i+1;j<N;j++){
+      const q=n[j];let dx=q.x-p.x,dy=q.y-p.y,d2=dx*dx+dy*dy;
+      if(d2>cutoff)continue;
+      if(d2<1){dx=Math.random()-.5;dy=Math.random()-.5;d2=dx*dx+dy*dy+.01}
+      const f=rep*a/Math.max(d2,30);
+      p.vx-=dx*f;p.vy-=dy*f;q.vx+=dx*f;q.vy+=dy*f;
+    }
+  }
+  for(const e of G.edges){
+    const {s:p,t:q}=e;let dx=q.x-p.x,dy=q.y-p.y;const d=Math.sqrt(dx*dx+dy*dy)||1;
+    const f=(d-s.linkDistance)/d*s.linkForce*a,bias=p.deg/(p.deg+q.deg||1);
+    dx*=f;dy*=f;q.vx-=dx*bias;q.vy-=dy*bias;p.vx+=dx*(1-bias);p.vy+=dy*(1-bias);
+  }
+  const sep=s.separate?s.separation:0;
+  for(const p of n){
+    p.vx-=p.x*s.center*a;p.vy-=p.y*s.center*a;
+    if(sep&&p.kind==='note'){
+      const an=p.group?G.anchors.get(p.group):null;
+      if(an){p.vx+=(an.x-p.x)*sep*a;p.vy+=(an.y-p.y)*sep*a}
+    }
+    if(p.fixed){p.vx=p.vy=0;continue}
+    p.vx*=.6;p.vy*=.6;p.x+=p.vx;p.y+=p.vy;
+  }
+  G.alpha+=(G.alphaTarget-G.alpha)*0.0228;
+  if(prewarm)return;
+}
+function fitGraph(){
+  if(!G.nodes.length||!G.w)return;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of G.nodes){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y)}
+  const bw=Math.max(x1-x0,60),bh=Math.max(y1-y0,60);
+  const k=clamp(Math.min((G.w-120)/bw,(G.h-120)/bh),0.1,1.6);
+  G.v.k=k;G.v.x=G.w/2-(x0+x1)/2*k;G.v.y=G.h/2-(y0+y1)/2*k;G.fitted=true;G.dirty=true;
+}
+const nodeR=n=>Math.max(2.5,gs().nodeSize*(0.7+Math.sqrt(n.deg||0)*0.55));
+function nodeColor(n){
+  if(n.kind==='tag')return G.theme.tag;
+  if(n.kind==='ghost')return G.theme.muted;
+  return n.group?n.group.color:G.theme.node;
+}
+function draw(){
+  const dpr=devicePixelRatio||1,{v,theme}=G,s=gs();
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,G.w,G.h);
+  ctx.translate(v.x,v.y);ctx.scale(v.k,v.k);
+  const hov=G.hover,nb=hov?G.adj.get(hov.id):null,active=S.active;
+  const lw=s.linkWidth/Math.sqrt(v.k);
+  // links
+  ctx.lineWidth=lw;
+  const drawEdges=(hi)=>{
+    ctx.beginPath();
+    for(const e of G.edges){
+      const on=!!hov&&(e.s===hov||e.t===hov);if(on!==hi)continue;
+      ctx.moveTo(e.s.x,e.s.y);ctx.lineTo(e.t.x,e.t.y);
+    }
+    ctx.stroke();
+  };
+  ctx.strokeStyle=theme.muted;ctx.globalAlpha=hov?0.1:0.4;drawEdges(false);
+  if(hov){ctx.strokeStyle=theme.accent;ctx.globalAlpha=0.95;ctx.lineWidth=lw*1.6;drawEdges(true)}
+  if(s.arrows){
+    ctx.fillStyle=theme.muted;ctx.globalAlpha=hov?0.3:0.6;
+    for(const e of G.edges){
+      const dx=e.t.x-e.s.x,dy=e.t.y-e.s.y,d=Math.hypot(dx,dy);if(d<1)continue;
+      const ux=dx/d,uy=dy/d,r=nodeR(e.t)+2,ax=e.t.x-ux*r,ay=e.t.y-uy*r,sz=5/Math.sqrt(v.k);
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax-ux*sz*1.6-uy*sz,ay-uy*sz*1.6+ux*sz);ctx.lineTo(ax-ux*sz*1.6+uy*sz,ay-uy*sz*1.6-ux*sz);ctx.fill();
+    }
+  }
+  // nodes
+  for(const n of G.nodes){
+    const r=nodeR(n)*(n===hov?1.25:1),dim=hov&&n!==hov&&!nb.has(n.id);
+    ctx.globalAlpha=dim?0.15:1;
+    const col=nodeColor(n);
+    ctx.beginPath();
+    if(n.kind==='tag'){ctx.moveTo(n.x,n.y-r*1.2);ctx.lineTo(n.x+r*1.2,n.y);ctx.lineTo(n.x,n.y+r*1.2);ctx.lineTo(n.x-r*1.2,n.y);ctx.closePath()}
+    else ctx.arc(n.x,n.y,r,0,6.2832);
+    if(n.kind==='ghost'){ctx.strokeStyle=col;ctx.lineWidth=1.3/Math.sqrt(v.k);ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([])}
+    else{ctx.fillStyle=col;ctx.fill()}
+    if(n.id===active){
+      ctx.beginPath();ctx.arc(n.x,n.y,r+3.5/Math.sqrt(v.k),0,6.2832);ctx.strokeStyle=theme.fg;ctx.lineWidth=1.8/Math.sqrt(v.k);ctx.stroke();
+    }
+  }
+  // labels
+  const fs=12/v.k,thr=s.labelThreshold;
+  ctx.font=`${fs}px system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
+  const base=clamp((v.k-thr*0.6)/0.5,0,1);
+  for(const n of G.nodes){
+    let al=base;
+    if(n===hov||n.id===active)al=1;else if(hov&&nb.has(n.id))al=Math.max(al,0.85);else if(hov)al*=0.2;
+    if(al<=0.02)continue;
+    ctx.globalAlpha=al;ctx.fillStyle=theme.fg;
+    ctx.fillText(n.label,n.x,n.y+nodeR(n)+3/v.k);
+  }
+  ctx.globalAlpha=1;
+}
+function loop(){
+  const moving=G.alpha>0.002||G.alphaTarget>0;
+  if(moving&&G.nodes.length){tick();G.dirty=true}
+  if(G.dirty&&G.w){draw();G.dirty=false}
+  requestAnimationFrame(loop);
+}
+const toWorld=(sx,sy)=>({x:(sx-G.v.x)/G.v.k,y:(sy-G.v.y)/G.v.k});
+function hit(sx,sy){
+  const w=toWorld(sx,sy);
+  for(let i=G.nodes.length-1;i>=0;i--){
+    const n=G.nodes[i],r=nodeR(n)+4/G.v.k,dx=n.x-w.x,dy=n.y-w.y;
+    if(dx*dx+dy*dy<=r*r)return n;
+  }
+  return null;
+}
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,n=hit(sx,sy);
+  if(n){G.drag={n,sx,sy,moved:false};n.fixed=true;G.alphaTarget=0.25;cv.classList.add('grabbing')}
+  else{G.pan={sx,sy,vx:G.v.x,vy:G.v.y};cv.classList.add('grabbing')}
+});
+cv.addEventListener('pointermove',e=>{
+  const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  if(G.drag){
+    const d=G.drag;if(Math.hypot(sx-d.sx,sy-d.sy)>4)d.moved=true;
+    if(d.moved){const w=toWorld(sx,sy);d.n.x=w.x;d.n.y=w.y;d.n.vx=d.n.vy=0;G.dirty=true}
+  }else if(G.pan){
+    G.v.x=G.pan.vx+(sx-G.pan.sx);G.v.y=G.pan.vy+(sy-G.pan.sy);G.fitted=true;G.dirty=true;
+  }else{
+    const n=hit(sx,sy);
+    if(n!==G.hover){G.hover=n;G.dirty=true;cv.classList.toggle('pointer',!!n)}
+  }
+});
+cv.addEventListener('pointerup',async e=>{
+  cv.classList.remove('grabbing');
+  if(G.drag){
+    const {n,moved}=G.drag;n.fixed=false;G.alphaTarget=0;G.drag=null;
+    if(!moved)graphClick(n);
+  }
+  G.pan=null;
+});
+cv.addEventListener('pointerleave',()=>{if(!G.drag&&G.hover){G.hover=null;G.dirty=true}});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  const w=toWorld(sx,sy),k=clamp(G.v.k*Math.exp(-e.deltaY*0.0015),0.05,6);
+  G.v.k=k;G.v.x=sx-w.x*k;G.v.y=sy-w.y*k;G.fitted=true;G.dirty=true;
+},{passive:false});
+function graphClick(n){
+  if(n.kind==='note')openNote(n.id);
+  else if(n.kind==='ghost')createNote(n.label);
+  else if(n.kind==='tag'){fsearch.value='tag:'+n.label;renderSidebar();setView(S.view==='graph'?'split':S.view)}
+}
+$('#gFit').onclick=fitGraph;
+$('#gAnim').onclick=()=>{G.alpha=1;G.dirty=true};
+$('#gLocal').onclick=()=>{gs().local=!gs().local;saveCfg();syncGraphControls();rebuildGraph()};
+$('#gGear').onclick=()=>{S.gearOpen=!S.gearOpen;$('#gpanel').hidden=!S.gearOpen;$('#gGear').classList.toggle('on',S.gearOpen)};
+
+/* ---- graph settings panel ---- */
+function ctlToggle(parent,label,key,{rebuild=false,reheat=false}={}){
+  const d=document.createElement('div');d.className='ctl';
+  d.innerHTML=`<label>${label}</label><input type="checkbox">`;
+  const i=$('input',d);i.checked=!!gs()[key];i.dataset.key=key;
+  i.onchange=()=>{gs()[key]=i.checked;saveCfg();if(rebuild)rebuildGraph();if(reheat){G.alpha=Math.max(G.alpha,.6);G.sig=''}G.dirty=true;if(key==='separate')rebuildGraph();syncGraphControls()};
+  parent.appendChild(d);
+}
+function ctlRange(parent,label,key,min,max,step,{rebuild=false,reheat=false}={}){
+  const d=document.createElement('div');d.className='ctl';
+  d.innerHTML=`<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}">`;
+  const i=$('input',d);i.value=gs()[key];i.dataset.key=key;
+  i.oninput=()=>{gs()[key]=+i.value;saveCfg();if(rebuild)rebuildGraph();if(reheat)G.alpha=Math.max(G.alpha,.5);G.dirty=true};
+  parent.appendChild(d);
+}
+function buildGraphPanel(){
+  const p=$('#gpanel');p.innerHTML='';
+  const sec=(title,open)=>{const d=document.createElement('details');d.open=open;d.innerHTML=`<summary>${title}</summary>`;p.appendChild(d);return d};
+  const f=sec('Filters',true);
+  const sd=document.createElement('div');sd.className='ctl';sd.innerHTML='<input type="text" placeholder="Filter nodes…  tag:#x  path:folder">';
+  const si=$('input',sd);si.value=gs().search;si.oninput=debounce(()=>{gs().search=si.value;saveCfg();rebuildGraph()},150);f.appendChild(sd);
+  ctlToggle(f,'Tags (as nodes)','showTags',{rebuild:true});
+  ctlToggle(f,'Unresolved links','showUnresolved',{rebuild:true});
+  ctlToggle(f,'Orphans','showOrphans',{rebuild:true});
+  ctlToggle(f,'Local graph (open note)','local',{rebuild:true});
+  ctlRange(f,'Local depth','depth',1,4,1,{rebuild:true});
+  const g=sec('Color groups',true);g.id='groupsSec';
+  const hint=document.createElement('div');hint.className='gname';hint.textContent='First matching group wins. Queries: tag:#idea  path:Projects  file:budget  or any word.';g.appendChild(hint);
+  const gl=document.createElement('div');gl.id='grpList';g.appendChild(gl);
+  const add=document.createElement('button');add.textContent='＋ New group';add.style.marginTop='6px';
+  add.onclick=()=>{S.cfg.groups.push({name:'',query:'',color:PALETTE[S.cfg.groups.length%PALETTE.length],hidden:false});saveCfg();renderGroupsUI();$$('#grpList .grp:last-child input[data-q]')[0]?.focus()};
+  g.appendChild(add);
+  ctlToggle(g,'Separate groups into clusters','separate',{});
+  ctlRange(g,'Separation strength','separation',0.02,0.6,0.01,{reheat:true});
+  const d=sec('Display',false);
+  ctlToggle(d,'Arrows','arrows');
+  ctlRange(d,'Node size','nodeSize',2,12,0.5);
+  ctlRange(d,'Link thickness','linkWidth',0.3,4,0.1);
+  ctlRange(d,'Text fade threshold','labelThreshold',0,2.5,0.05);
+  const fo=sec('Forces',false);
+  ctlRange(fo,'Center force','center',0,0.3,0.005,{reheat:true});
+  ctlRange(fo,'Repel force','repel',50,3000,10,{reheat:true});
+  ctlRange(fo,'Link force','linkForce',0.02,1,0.01,{reheat:true});
+  ctlRange(fo,'Link distance','linkDistance',20,300,5,{reheat:true});
+  syncGraphControls();
+}
+function syncGraphControls(){$('#gLocal').classList.toggle('on',!!gs().local);$$('#gpanel input[type=checkbox]').forEach(i=>i.checked=!!gs()[i.dataset.key])}
+const regroup=debounce(()=>{recolor();renderSidebar();renderRight();rebuildGraph();renderLegend();saveCfg()},200);
+function renderGroupsUI(){
+  const box=$('#grpList');if(!box)return;
+  if(box.contains(document.activeElement)&&document.activeElement.tagName==='INPUT'&&document.activeElement.type==='text'){
+    S.cfg.groups.forEach((g,i)=>{const c=$(`[data-gc="${i}"]`,box);if(c)c.textContent=`${g._count||0} notes`});return;
+  }
+  box.innerHTML='';
+  S.cfg.groups.forEach((g,i)=>{
+    const row=document.createElement('div');row.className='grp'+(g.hidden?' hid':'');
+    row.innerHTML=`<input type="color" value="${g.color}" title="Group color"><div style="flex:1;min-width:0"><input type="text" data-n placeholder="Group name" value="${esc(g.name||'')}" style="width:100%;margin-bottom:3px"><input type="text" data-q placeholder="query, e.g. tag:#idea" value="${esc(g.query)}" style="width:100%"><div class="gname" data-gc="${i}">${g._count||0} notes</div></div><div style="display:flex;flex-direction:column;gap:3px"><button data-eye title="Show / hide this group in the graph">${g.hidden?'🙈':'👁'}</button><button data-up title="Higher priority">↑</button><button data-del title="Delete group">✕</button></div>`;
+    $('input[type=color]',row).oninput=e=>{g.color=e.target.value;recolor();renderSidebar();renderLegend();G.dirty=true;saveCfg()};
+    $('[data-n]',row).oninput=e=>{g.name=e.target.value;regroup()};
+    $('[data-q]',row).oninput=e=>{g.query=e.target.value;regroup()};
+    $('[data-eye]',row).onclick=()=>{g.hidden=!g.hidden;regroup();renderGroupsUI()};
+    $('[data-up]',row).onclick=()=>{if(i>0){[S.cfg.groups[i-1],S.cfg.groups[i]]=[S.cfg.groups[i],S.cfg.groups[i-1]];regroup();renderGroupsUI()}};
+    $('[data-del]',row).onclick=()=>{S.cfg.groups.splice(i,1);regroup();renderGroupsUI()};
+    box.appendChild(row);
+  });
+}
+function renderLegend(){
+  const el=$('#glegend');
+  if(!S.cfg.groups.length){el.hidden=true;return}
+  el.hidden=false;
+  el.innerHTML=S.cfg.groups.map((g,i)=>`<div class="lg${g.hidden?' hid':''}" data-i="${i}" title="Click to show / hide"><span class="dot" style="background:${g.color}"></span>${esc(g.name||g.query||'(empty)')}<span class="cnt">${g._count||0}</span></div>`).join('');
+}
+$('#glegend').addEventListener('click',e=>{
+  const d=e.target.closest('.lg');if(!d)return;
+  const g=S.cfg.groups[+d.dataset.i];g.hidden=!g.hidden;regroup();renderGroupsUI();
+});
+
+/* ============================================================ chrome === */
+function setView(v){
+  S.view=v;document.body.dataset.view=v;
+  $$('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  requestAnimationFrame(()=>{G.w=0;resizeGraph();if(!G.fitted)fitGraph();G.dirty=true});
+  try{localStorage.setItem('hv:view',v)}catch{}
+}
+$('#viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.view)});
+function setTheme(t){
+  document.documentElement.dataset.theme=t;try{localStorage.setItem('hv:theme',t)}catch{}
+  readTheme();
+}
+$('#btnTheme').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
+$('#btnVault').onclick=async()=>{await flushSave();showWelcome()};
+
+/* ============================================================ welcome === */
+async function showWelcome(){
+  $('#welcome').hidden=false;
+  const hasFS='showDirectoryPicker' in window;
+  $('#wOpen').disabled=!hasFS;
+  $('#wNote').textContent=hasFS?'':'Folder access needs Chrome or Edge. In this browser you can still try the demo vault.';
+  const last=await idb.get('lastVault');
+  $('#wReopen').hidden=!last;if(last)$('#wReopenName').textContent=last.name;
+}
+async function openFolder(handle){
+  const be=new FSBackend(handle);
+  await idb.set('lastVault',handle);
+  await useBackend(be);
+}
+$('#wOpen').onclick=async()=>{
+  try{const h=await showDirectoryPicker({mode:'readwrite'});await openFolder(h)}
+  catch(e){if(e.name!=='AbortError'){console.error(e);toast('Could not open folder: '+e.message,4000)}}
+};
+$('#wReopen').onclick=async()=>{
+  try{
+    const h=await idb.get('lastVault');
+    if(await h.requestPermission({mode:'readwrite'})!=='granted'){toast('Permission was not granted');return}
+    await openFolder(h);
+  }catch(e){console.error(e);toast('Could not reopen: '+e.message,4000)}
+};
+$('#wDemo').onclick=async()=>{
+  const be=new LocalBackend();
+  if(!(await be.scan()).length)await seedDemo(be);
+  await useBackend(be);
+};
+
+/* ============================================================ demo data === */
+async function seedDemo(be){
+  const P=(name,tags,html)=>({name,tags,html});
+  const notes=[
+    ['Welcome','',['welcome'],`<p>Welcome to <strong>HTML Vault</strong>, a graph notebook where every note is a real <mark>HTML file</mark>.</p>
+<ul><li>See how notes connect in the [[Graph View]]</li><li>Split the graph into colors with [[Color Groups]]</li><li>Learn how files are kept in [[HTML Storage]]</li><li>Browse the sample work: [[Project Atlas]], [[Idea Inbox]], [[Reading List]]</li></ul>
+<div class="callout"><p><strong>Tip</strong></p><p>Type <code>[[</code> in any note to link to another one. Links to notes that don't exist yet (like [[Future Note]]) show up as dashed ghost nodes.</p></div>`],
+    ['Graph View','',['docs'],`<h2>Graph view</h2><p>Every note is a node and every <code>&#91;&#91;link&#93;&#93;</code> is an edge. Drag nodes, scroll to zoom, hover to highlight a neighborhood, click to open.</p><p>Open the <strong>⚙ Settings</strong> panel to tune forces and filters. See [[Color Groups]] for coloring.</p>`],
+    ['Color Groups','',['docs'],`<h2>Color groups</h2><p>A group is a <em>query</em> plus a color. The first group that matches a note decides its color, both in the graph and in the file list.</p>
+<table><thead><tr><th>Query</th><th>Matches</th></tr></thead><tbody><tr><td><code>tag:#idea</code></td><td>notes tagged idea</td></tr><tr><td><code>path:People</code></td><td>notes inside the People folder</td></tr><tr><td><code>file:atlas</code></td><td>titles containing “atlas”</td></tr></tbody></table>
+<p>Turn on <strong>Separate groups into clusters</strong> to pull each color into its own region. Back to [[Graph View]].</p>`],
+    ['HTML Storage','',['docs'],`<h2>Stored as HTML</h2><p>Each note is a self-contained <code>.html</code> file: rich formatting, tables, colors, images and checklists survive, and you can open any file straight in a browser.</p>
+<pre><code>&lt;meta name="hv:tags" content="idea, project"&gt;
+&lt;a class="wikilink" data-link="Other Note" href="Other%20Note.html"&gt;Other Note&lt;/a&gt;</code></pre>
+<p>Links are ordinary relative <code>href</code>s, so they work outside the app too. Start from the [[Welcome]] note.</p>`],
+    ['Projects/Project Atlas','project',['project'],`<h2>Project Atlas</h2><p>Goal: ship the first public version of the notebook.</p><ul><li><input type="checkbox" checked> Graph view with [[Graph View|force layout]]</li><li><input type="checkbox" checked> Color groups</li><li><input type="checkbox"> [[Plugin System]]</li></ul><p>Owner: [[Ada Lovelace]]. Timeline in [[Roadmap]] and [[Sprint 12]].</p>`],
+    ['Projects/Roadmap','project',['project'],`<h2>Roadmap</h2><ol><li>Stabilize [[Project Atlas]]</li><li>Review [[Idea Inbox]] for Q4</li><li>[[Sprint 12]] planning with [[Grace Hopper]]</li></ol>`],
+    ['Projects/Sprint 12','project',['project'],`<h2>Sprint 12</h2><p>Focus: polish. Logged daily in [[2026-10-12]].</p><p>Part of [[Project Atlas]].</p>`],
+    ['Ideas/Idea Inbox','idea',['idea'],`<h2>Idea inbox</h2><p>Loose thoughts to sort later:</p><ul><li>[[Local-first Sync]]</li><li>[[Plugin System]]</li><li>[[Spaced Repetition]]</li></ul>`],
+    ['Ideas/Local-first Sync','idea',['idea'],`<h2>Local-first sync</h2><p>Merge edits from many devices without a server. Needs a CRDT, see [[Paper - CRDTs]]. Files stay plain, see [[HTML Storage]].</p>`],
+    ['Ideas/Plugin System','idea',['idea'],`<h2>Plugin system</h2><p>Let people extend the notebook. Would unblock parts of [[Project Atlas]]. <mark>High value.</mark></p>`],
+    ['Ideas/Spaced Repetition','idea',['idea'],`<h2>Spaced repetition</h2><p>Resurface notes on a schedule. Inspired by [[Book - Make It Stick]].</p>`],
+    ['Reading/Reading List','reading',['reading'],`<h2>Reading list</h2><ul><li>[[Book - Make It Stick]]</li><li>[[Book - DDIA]]</li><li>[[Paper - CRDTs]]</li></ul>`],
+    ['Reading/Book - Make It Stick','reading',['reading'],`<h2>Make It Stick</h2><p>Retrieval practice beats rereading. Feeds [[Spaced Repetition]].</p>`],
+    ['Reading/Book - DDIA','reading',['reading'],`<h2>Designing Data-Intensive Applications</h2><p>Chapter on replication is relevant to [[Local-first Sync]].</p>`],
+    ['Reading/Paper - CRDTs','reading',['reading'],`<h2>CRDTs</h2><p>Conflict-free replicated data types. Core of [[Local-first Sync]].</p>`],
+    ['People/Ada Lovelace','person',['person'],`<h2>Ada Lovelace</h2><p>Leads [[Project Atlas]].</p>`],
+    ['People/Grace Hopper','person',['person'],`<h2>Grace Hopper</h2><p>Advisor on the [[Roadmap]] and the [[Plugin System]].</p>`],
+    ['Daily/2026-10-12','daily',['daily'],`<h2>2026-10-12</h2><p>Standup for [[Sprint 12]]. Sorted the [[Idea Inbox]]. Lunch with [[Grace Hopper]].</p><ul><li><input type="checkbox"> Review pull requests</li><li><input type="checkbox" checked> Update [[Roadmap]]</li></ul>`],
+  ];
+  // two passes so hrefs resolve to real paths
+  const tmp=new Map();
+  for(const [full,,tags,html] of notes){const {dir,name}=splitFull(full);tmp.set(lc(name),{dir,name,tags,body:wikify(html)})}
+  S.byName=new Map([...tmp].map(([k,v])=>[k,{path:(v.dir?v.dir+'/':'')+v.name+'.html'}]));
+  for(const v of tmp.values()){const o=makeNoteObj(v.name,v.dir,v.body,v.tags);await be.write(o.path,serializeNote(o))}
+  await be.writeConfig({settings:DEFAULT_SETTINGS,groups:[
+    {name:'Projects',query:'tag:#project',color:'#f59e0b'},
+    {name:'Ideas',query:'tag:#idea',color:'#a78bfa'},
+    {name:'Reading',query:'tag:#reading',color:'#34d399'},
+    {name:'People',query:'path:People',color:'#f472b6'},
+    {name:'Daily',query:'path:Daily',color:'#60a5fa'},
+  ]});
+}
+
+/* ================================================================ boot === */
+(function boot(){
+  let t='dark';try{t=localStorage.getItem('hv:theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark')}catch{}
+  setTheme(t);
+  try{const v=localStorage.getItem('hv:view');if(v)setView(v)}catch{}
+  editor.addEventListener('click',e=>{if(e.target.matches('input[type=checkbox]'))setTimeout(scheduleSave)});
+  requestAnimationFrame(loop);
+  showWelcome();
+  window.addEventListener('beforeunload',e=>{if(S.dirty){flushSave();e.preventDefault();e.returnValue=''}});
+  window.__hv={S,G}; // handy for debugging in devtools
+})();
+</script>
+</body>
+</html>
