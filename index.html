@@ -103,6 +103,13 @@ body[data-view="graph"] #right{display:none}
 #gtools{position:absolute;top:10px;left:10px;display:flex;gap:6px;z-index:2}
 #gtools button{background:color-mix(in srgb,var(--panel) 90%,transparent)}
 #gtools button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#ganim{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:3;display:flex;gap:8px;align-items:center;width:min(580px,calc(100% - 24px));background:color-mix(in srgb,var(--panel) 93%,transparent);border:1px solid var(--border);border-radius:12px;padding:6px 10px;box-shadow:0 8px 30px #0007}
+#ganim input[type=range]{flex:1;min-width:60px;accent-color:var(--accent)}
+#ganim button{padding:2px 9px}
+#ganim select{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 4px}
+#aCount{font-size:12px;color:var(--muted);min-width:70px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+#adate{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:1;font-size:46px;font-weight:700;letter-spacing:3px;color:var(--fg);opacity:.17;pointer-events:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+#graphPane.animating #glegend,#graphPane.animating #ginfo,#graphPane.animating #glocal{display:none}
 #glocal{position:absolute;top:48px;left:10px;z-index:2;display:flex;gap:10px;align-items:center;background:color-mix(in srgb,var(--accent) 22%,var(--panel));border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:12.5px;max-width:calc(100% - 330px)}
 #glocal button{padding:1px 8px;font-size:12px;flex:none}
 #gpanel{position:absolute;top:48px;right:10px;width:290px;max-height:calc(100% - 60px);overflow:auto;background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--border);border-radius:10px;padding:4px 12px 10px;z-index:2;box-shadow:0 8px 30px #0006}
@@ -193,7 +200,7 @@ body[data-view="graph"] #right{display:none}
         <div id="gtools">
           <button id="gGear" title="Graph settings">⚙ Settings</button>
           <button id="gFit" title="Zoom to fit">⤢ Fit</button>
-          <button id="gAnim" title="Re-run the layout">▶ Animate</button>
+          <button id="gAnim" title="Replay: watch your notes appear in the order they were created. Shift-click re-runs the layout.">▶ Animate</button>
           <button id="gLocal" title="Only show notes near the open note">◎ Local</button>
           <button id="gReset" title="Back to the full graph: clears the filter, local mode and highlights">↺ Reset</button>
         </div>
@@ -201,6 +208,15 @@ body[data-view="graph"] #right{display:none}
         <div id="gpanel" hidden></div>
         <div id="glegend"></div>
         <div id="ginfo"></div>
+        <div id="adate" hidden></div>
+        <div id="ganim" hidden>
+          <button id="aPlay" title="Pause / play (Space)">⏸</button>
+          <button id="aReplay" title="Start over">⏮</button>
+          <input id="aScrub" type="range" min="0" max="100" step="0.1" value="0" title="Drag to scrub through time">
+          <span id="aCount"></span>
+          <select id="aSpeed" title="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+          <button id="aClose" title="Close the replay (Esc)">✕</button>
+        </div>
       </div>
     </section>
     <aside id="right"></aside>
@@ -223,6 +239,7 @@ body[data-view="graph"] #right{display:none}
 
 <script src="lib/analysis.js"></script>
 <script src="lib/md.js"></script>
+<script src="lib/replay.js"></script>
 <script src="features.js"></script>
 <script>
 'use strict';
@@ -907,6 +924,7 @@ function computeGraph(){
   return {vis,edges:edges.filter(e=>keep.has(e.a)&&keep.has(e.b)),keep};
 }
 function rebuildGraph(){
+  if(G.anim)stopAnimate();            // the replay is planned for one exact set of notes
   recolor();
   const {vis,edges,keep}=computeGraph();
   const nodes=[];
@@ -1020,7 +1038,122 @@ function nodeColor(n){
 const REL_LABEL_MIN_ZOOM=0.3;   // below this zoom, hovering names only the hovered note, not its neighbours
 const LABEL_W=new Map();   // label text -> width in px at the 12px label font
 function measureLabel(t){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.font='12px system-ui,sans-serif';const w=ctx.measureText(t).width;ctx.restore();return w}
+/* ------------------------------------------------------------------ Replay
+   "Animate" plays the vault growing: notes appear in the order they were created, each one blooming out of
+   the note it links to, with a pulse ring and a flash along the new link. The layout is frozen while it
+   plays so notes land where they will finally sit. Everything is a pure function of A.t (how many notes are
+   shown), so pausing, scrubbing and playing backwards all just work. */
+const easeOutCubic=x=>1-Math.pow(1-x,3);
+const easeOutBack=x=>{const c=1.70158;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+function startAnimate(){
+  if(G.anim){stopAnimate();return}
+  const nodes=G.nodes;
+  if(nodes.length<3){G.alpha=1;G.dirty=true;return}            // nothing to replay: just re-run the layout
+  if(G.alpha>0.01){for(let i=0;i<220;i++)tick(true)}           // let the layout settle first
+  fitGraph();
+  const plan=HVReplay.plan(
+    nodes.map(n=>({id:n.id,day:n.note?(String(n.note.created||'').slice(0,10)||null):null,deg:n.deg})),
+    G.edges.map(e=>({a:e.s.id,b:e.t.id})));
+  const order=plan.order.map(id=>G.byId.get(id)),idx=new Map(order.map((n,i)=>[n.id,i])),N=order.length;
+  G.anim={order,N,parent:plan.parent,day:plan.day,days:plan.days,t:0,hold:0,playing:true,scrub:false,
+    mult:+$('#aSpeed').value||1,last:performance.now(),base:Math.max(N/14,4),     // about 14 s for the whole story at 1x
+    ei:G.edges.map(e=>[idx.get(e.s.id),idx.get(e.t.id)]),
+    age:new Float32Array(N),dx:new Float32Array(N),dy:new Float32Array(N),hud:{}};
+  G.hover=null;setHighlight(null);
+  $('#graphPane').classList.add('animating');$('#ganim').hidden=false;$('#adate').hidden=false;
+  const sc=$('#aScrub');sc.max=N;sc.value=0;$('#aPlay').textContent='⏸';
+  G.dirty=true;
+}
+function stopAnimate(){
+  if(!G.anim)return;
+  G.anim=null;$('#graphPane').classList.remove('animating');$('#ganim').hidden=true;$('#adate').hidden=true;
+  G.alpha=Math.max(G.alpha,0.3);G.dirty=true;                  // a gentle settle as the normal graph returns
+}
+function stepAnim(now){
+  const A=G.anim,dt=Math.min(0.1,(now-A.last)/1000);A.last=now;
+  if(A.playing&&!A.scrub&&A.t<A.N){
+    A.t=Math.min(A.N,A.t+dt*A.base*A.mult);
+    if(A.t>=A.N){A.playing=false}
+  }
+  const shown=Math.min(A.N,Math.floor(A.t)),h=A.hud;
+  const label=A.t>=A.N?'all '+A.N:shown+' / '+A.N;
+  if(h.count!==label){h.count=label;$('#aCount').textContent=label}
+  const d=shown>0?A.day.get(A.order[shown-1].id):'';
+  const dayText=d&&d!=='9999-99-99'?d:'';
+  if(h.day!==dayText){h.day=dayText;$('#adate').textContent=dayText}
+  const icon=A.playing?'⏸':(A.t>=A.N?'↻':'▶');
+  if(h.icon!==icon){h.icon=icon;$('#aPlay').textContent=icon}
+  if(!A.scrub)$('#aScrub').value=A.t;
+  G.dirty=true;
+}
+function drawAnim(){
+  const A=G.anim,dpr=devicePixelRatio||1,{v,theme}=G,s=gs(),rate=A.base*A.mult,sk=Math.sqrt(v.k);
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,G.w,G.h);
+  ctx.translate(v.x,v.y);ctx.scale(v.k,v.k);
+  const vis=Math.min(A.N,Math.ceil(A.t));
+  for(let i=0;i<vis;i++){                                        // where is each shown note right now?
+    const n=A.order[i],age=(A.t-i)/rate,p=A.parent.get(n.id),pn=p?G.byId.get(p):null;
+    const e=easeOutCubic(clamp(age/0.9,0,1));
+    A.age[i]=age;A.dx[i]=pn?pn.x+(n.x-pn.x)*e:n.x;A.dy[i]=pn?pn.y+(n.y-pn.y)*e:n.y;
+  }
+  // links: settled ones in one batch, brand-new ones flash in the accent colour and cool down
+  ctx.lineWidth=s.linkWidth/sk;ctx.strokeStyle=theme.muted;ctx.globalAlpha=0.35;ctx.beginPath();
+  const fresh=[];
+  for(let k=0;k<A.ei.length;k++){
+    const a=A.ei[k][0],b=A.ei[k][1];if(a>=vis||b>=vis)continue;
+    if(A.age[Math.max(a,b)]<1){fresh.push(k);continue}
+    ctx.moveTo(A.dx[a],A.dy[a]);ctx.lineTo(A.dx[b],A.dy[b]);
+  }
+  ctx.stroke();
+  ctx.strokeStyle=theme.accent;ctx.lineWidth=1.9/sk;
+  for(const k of fresh){
+    const a=A.ei[k][0],b=A.ei[k][1],ag=A.age[Math.max(a,b)];
+    ctx.globalAlpha=clamp(0.95-ag*0.6,0.2,1)*clamp(ag/0.12,0,1);
+    ctx.beginPath();ctx.moveTo(A.dx[a],A.dy[a]);ctx.lineTo(A.dx[b],A.dy[b]);ctx.stroke();
+  }
+  // notes: pop in with a little overshoot, a soft halo and an expanding ring while new
+  for(let i=0;i<vis;i++){
+    const n=A.order[i],age=A.age[i],x=A.dx[i],y=A.dy[i],col=nodeColor(n),base=nodeR(n);
+    const r=base*Math.max(age<0.55?easeOutBack(clamp(age/0.55,0,1)):1,0.01),fade=clamp(age/0.18,0,1);
+    if(age<0.9){ctx.globalAlpha=0.28*(1-age/0.9)*fade;ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,r*2.6,0,6.2832);ctx.fill()}
+    ctx.globalAlpha=fade;ctx.beginPath();
+    if(n.kind==='tag'){ctx.moveTo(x,y-r*1.2);ctx.lineTo(x+r*1.2,y);ctx.lineTo(x,y+r*1.2);ctx.lineTo(x-r*1.2,y);ctx.closePath()}
+    else ctx.arc(x,y,r,0,6.2832);
+    if(n.kind==='ghost'){ctx.strokeStyle=col;ctx.lineWidth=1.3/sk;ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([])}
+    else{ctx.fillStyle=col;ctx.fill()}
+    if(age<0.8){const q=age/0.8;ctx.globalAlpha=(1-q)*0.8;ctx.strokeStyle=col;ctx.lineWidth=2/sk;ctx.beginPath();ctx.arc(x,y,base+q*26/v.k,0,6.2832);ctx.stroke()}
+  }
+  // names only for the newest arrivals (biggest hubs first, never overlapping), fading out as they age
+  ctx.font=`${12/v.k}px system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';ctx.lineJoin='round';ctx.lineWidth=3.5/v.k;
+  const cand=[];for(let i=0;i<vis;i++)if(A.age[i]<1.8&&A.age[i]>0.05)cand.push(i);
+  cand.sort((a,b)=>A.order[b].deg-A.order[a].deg);
+  const placed=[];
+  for(const i of cand.slice(0,14)){
+    const n=A.order[i],text=n.label.length>30?n.label.slice(0,29)+'…':n.label;
+    let w=LABEL_W.get(text);if(w===undefined){w=measureLabel(text);LABEL_W.set(text,w)}
+    const sx=A.dx[i]*v.k+v.x,sy=A.dy[i]*v.k+v.y+(nodeR(n)*v.k+3);
+    const x0=sx-w/2-3,x1=sx+w/2+3,y0=sy-1,y1=sy+15;
+    if(x1<0||x0>G.w||y1<0||y0>G.h||placed.some(r=>x0<r[2]&&x1>r[0]&&y0<r[3]&&y1>r[1]))continue;
+    placed.push([x0,y0,x1,y1]);
+    ctx.globalAlpha=clamp(A.age[i]/0.15,0,1)*clamp(1-(A.age[i]-1.1)/0.7,0,1);
+    const ty=A.dy[i]+nodeR(n)+3/v.k;
+    ctx.strokeStyle=theme.bg;ctx.strokeText(text,A.dx[i],ty);ctx.fillStyle=theme.fg;ctx.fillText(text,A.dx[i],ty);
+  }
+  G.labelRects=placed;ctx.globalAlpha=1;
+}
+$('#aPlay').onclick=()=>{const A=G.anim;if(!A)return;if(A.t>=A.N){A.t=0}A.playing=!A.playing||A.t===0;A.last=performance.now()};
+$('#aReplay').onclick=()=>{const A=G.anim;if(A){A.t=0;A.playing=true;A.last=performance.now()}};
+$('#aSpeed').onchange=e=>{if(G.anim)G.anim.mult=+e.target.value||1};
+$('#aScrub').addEventListener('input',e=>{const A=G.anim;if(A){A.scrub=true;A.t=+e.target.value;G.dirty=true}});
+$('#aScrub').addEventListener('change',()=>{if(G.anim){G.anim.scrub=false;G.anim.last=performance.now()}});
+$('#aClose').onclick=stopAnimate;
+addEventListener('keydown',e=>{
+  if(!G.anim)return;
+  if(e.key==='Escape')stopAnimate();
+  else if(e.key===' '&&!/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(document.activeElement.tagName)&&!document.activeElement.isContentEditable){e.preventDefault();$('#aPlay').click()}
+});
 function draw(){
+  if(G.anim){drawAnim();return}
   const dpr=devicePixelRatio||1,{v,theme}=G,s=gs();
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,G.w,G.h);
   ctx.translate(v.x,v.y);ctx.scale(v.k,v.k);
@@ -1098,13 +1231,15 @@ function draw(){
   ctx.globalAlpha=1;
 }
 function loop(){
-  const moving=G.alpha>0.002||G.alphaTarget>0;
+  if(G.anim)stepAnim(performance.now());                      // layout stays frozen during a replay
+  const moving=!G.anim&&(G.alpha>0.002||G.alphaTarget>0);
   if(moving&&G.nodes.length){tick();G.dirty=true}
   if(G.dirty&&G.w){draw();G.dirty=false}
   requestAnimationFrame(loop);
 }
 const toWorld=(sx,sy)=>({x:(sx-G.v.x)/G.v.k,y:(sy-G.v.y)/G.v.k});
 function hit(sx,sy){
+  if(G.anim)return null;                                      // notes are not clickable while the replay plays
   const w=toWorld(sx,sy);
   for(let i=G.nodes.length-1;i>=0;i--){
     const n=G.nodes[i],r=nodeR(n)+4/G.v.k,dx=n.x-w.x,dy=n.y-w.y;
@@ -1154,7 +1289,7 @@ function graphClick(n){
   else if(n.kind==='tag'){fsearch.value='tag:'+n.label;renderSidebar();setView(S.view==='graph'?'split':S.view)}
 }
 $('#gFit').onclick=fitGraph;
-$('#gAnim').onclick=()=>{G.alpha=1;G.dirty=true};
+$('#gAnim').onclick=e=>{if(e.shiftKey){G.alpha=1;G.dirty=true}else startAnimate()};
 $('#gLocal').onclick=()=>{gs().local=!gs().local;saveCfg();syncGraphControls();rebuildGraph()};
 $('#gGear').onclick=()=>{S.gearOpen=!S.gearOpen;$('#gpanel').hidden=!S.gearOpen;$('#gGear').classList.toggle('on',S.gearOpen)};
 

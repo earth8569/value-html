@@ -355,7 +355,10 @@ async function openSettings() {
   };
   $('#sFiles').onchange = async e => {
     const files = [...e.target.files].filter(f => /\.md$/i.test(f.name));
-    const list = await Promise.all(files.map(async f => ({ path: f.webkitRelativePath.split('/').slice(1).join('/'), text: await f.text() })));
+    const list = await Promise.all(files.map(async f => {
+      const iso = new Date(f.lastModified).toISOString();    // browsers only expose the modified time
+      return { path: f.webkitRelativePath.split('/').slice(1).join('/'), text: await f.text(), created: iso, modified: iso };
+    }));
     closeSettings(); importMarkdown(list);
   };
 }
@@ -387,6 +390,8 @@ async function importMarkdown(files) {
     // the note title is stored separately, so drop a leading "# Title" that repeats it
     const html = HVMD.toHtml(fm.body).replace(/^\s*<h1>([^<]*)<\/h1>\s*/, (m, t) => (lc(t.trim()) === lc(name) ? '' : m));
     const obj = makeNoteObj(name, dir, html, fm.tags);
+    if (f.created) obj.created = f.created;          // real dates from the source file, not "now"
+    if (f.modified) obj.updated = f.modified;
     // placeholder so links between imported notes resolve while serializing
     S.notes.set(obj.path, { ...obj, links: [], allTags: [], text: '', plain: '' });
     S.byName.set(lc(name), S.notes.get(obj.path));
