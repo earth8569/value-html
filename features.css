@@ -53,3 +53,59 @@ button.mini{padding:0 7px;font-size:12px}
 #gpanel .card .lnk{display:inline-block;margin-right:8px;color:var(--link);cursor:pointer}
 #gpanel .gname{font-size:11px;color:var(--muted)}
 #gpanel select{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 6px}
+
+/* ---------------------------------------------------------------- Reading: outline, reading mode, folding */
+#readbar{display:none;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel)}
+body.reading #readbar{display:flex}
+body.reading #toolbar{display:none}
+#readbar button,#readbar select{padding:2px 8px}
+#readbar select{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--fg)}
+#readbar .sep{width:1px;align-self:stretch;background:var(--border);margin:0 4px}
+#rdStats{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+body.reading #title{pointer-events:none;border-bottom-color:transparent}
+body.reading #noteWrap{max-width:var(--read-width,46rem)}
+/* two ids on purpose: this must beat the narrow-pane rule (#noteScroll #editor inside a container query) */
+body.reading #noteScroll #editor{font-size:var(--read-size,17px);line-height:var(--read-lh,1.7);caret-color:transparent;min-height:0}
+/* the note area has 24px of top padding, so a sticky table header would stop 24px short of the top */
+#noteScroll #editor th{top:-24px}
+body.reading.rd-serif #editor,body.reading.rd-serif #title{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif}
+body.reading.rd-sepia #noteScroll{--bg:#f4ecd8;--fg:#3b3226;--muted:#7a6a55;--border:#d8c9a8;--code:#eadfc3;--link:#8a4b08;--accent:#b8651b;background:#f4ecd8;color:#3b3226}
+body.reading.rd-sepia #title{color:#3b3226}
+
+/* folding: the arrow is a pseudo-element, so nothing is added to the note itself */
+body.reading #editor :is(h1,h2,h3,h4){position:relative;padding-left:1.15em;margin-left:-1.15em}
+body.reading #editor :is(h1,h2,h3,h4)::before{content:"▾";position:absolute;left:0;top:.12em;font-size:.7em;color:var(--muted);opacity:.35;cursor:pointer;transition:opacity .15s}
+body.reading #editor :is(h1,h2,h3,h4):hover::before{opacity:1}
+body.reading #editor :is(h1,h2,h3,h4).hv-folded::before{content:"▸";opacity:.95;color:var(--accent)}
+body.reading #editor :is(h1,h2,h3,h4).hv-folded::after{content:" ⋯";color:var(--muted);font-weight:400}
+#editor .hv-fold-hidden{display:none!important}
+#editor .hv-flash{animation:hvflash 1.4s ease-out}
+@keyframes hvflash{0%{background:color-mix(in srgb,var(--accent) 35%,transparent)}100%{background:transparent}}
+
+/* outline (details panel and pop-up) */
+#outline .ol-list{max-height:40vh;overflow:auto;margin:0 -4px;padding:0 4px}
+.ol{display:block;padding:2px 6px;border-radius:5px;cursor:pointer;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid transparent;font-size:12.5px;line-height:1.55}
+.ol:hover{background:var(--panel2);color:var(--fg)}
+.ol.on{color:var(--fg);border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);font-weight:600}
+.ol.l1{padding-left:16px}.ol.l2{padding-left:26px}.ol.l3{padding-left:36px}
+.ol-empty{color:var(--muted);font-size:12px;padding:2px 6px}
+#outlinePop{position:fixed;z-index:70;width:min(340px,92vw);max-height:60vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px #0009;padding:6px}
+#outlinePop[hidden]{display:none}
+
+/* ---------------------------------------------------------------- Edit | Read switch */
+:root{--mode-edit:#60a5fa;--on-edit:#0b1220;--mode-read:#34d399;--on-read:#052e1b}
+:root[data-theme="light"]{--mode-edit:#2563eb;--on-edit:#ffffff;--mode-read:#047857;--on-read:#ffffff}
+#modebar{display:flex;align-items:center;gap:12px;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--border);border-top:3px solid var(--border)}
+#notePane.mode-edit #modebar{border-top-color:var(--mode-edit)}
+#notePane.mode-read #modebar{border-top-color:var(--mode-read)}
+.modeswitch{display:inline-flex;flex:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--bg)}
+.modeswitch button{border:0;border-radius:0;padding:4px 16px;font-weight:600;background:transparent;white-space:nowrap}
+.modeswitch button+button{border-left:1px solid var(--border)}
+#mdEdit{color:var(--mode-edit)}
+#mdRead{color:var(--mode-read)}
+#mdEdit:hover:not(.on){background:color-mix(in srgb,var(--mode-edit) 16%,transparent)}
+#mdRead:hover:not(.on){background:color-mix(in srgb,var(--mode-read) 16%,transparent)}
+#mdEdit.on{background:var(--mode-edit);color:var(--on-edit)}
+#mdRead.on{background:var(--mode-read);color:var(--on-read)}
+#mdHint{flex:1;min-width:0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

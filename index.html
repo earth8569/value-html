@@ -256,6 +256,8 @@ body[data-view="graph"] #splitR{display:none}
 <script src="lib/analysis.js"></script>
 <script src="lib/md.js"></script>
 <script src="lib/replay.js"></script>
+<script src="lib/fold.js"></script>
+<script src="reading.js"></script>
 <script src="features.js"></script>
 <script>
 'use strict';
@@ -299,9 +301,11 @@ code{background:var(--code);padding:.1em .35em;border-radius:4px;font-family:ui-
 pre{background:var(--code);padding:.8em 1em;border-radius:8px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:.9em}
 pre code{background:none;padding:0}
 mark{background:#fde04766;color:inherit;padding:0 .15em;border-radius:3px}
-table{border-collapse:collapse}
-th,td{border:1px solid var(--border);padding:.35em .7em;min-width:4em;vertical-align:top}
-th{background:var(--code);text-align:left}
+table{border-collapse:collapse;max-width:100%;font-size:.94em}
+th,td{border:1px solid var(--border);padding:.4em .75em;min-width:4em;vertical-align:top;font-variant-numeric:tabular-nums}
+th{background:var(--code);text-align:left;position:sticky;top:0;z-index:1;box-shadow:0 1px 0 var(--border)}
+tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 55%,transparent)}
+tbody tr:hover td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 hr{border:0;border-top:1px solid var(--border);margin:1.4em 0}
 img{max-width:100%;border-radius:6px}
 .callout{border:1px solid var(--border);border-left:4px solid var(--accent);background:var(--code);border-radius:6px;padding:.4em 1em;margin:.9em 0}
@@ -383,7 +387,11 @@ function parseNote(path,html,mtime){
       }}
     if(l)links.add(l);
   });
-  const text=(art.textContent||'');
+  // plain text for search and AI context: textContent alone glues table cells and list items together
+  // ("DayCityPlan"), so put a space after every block-level element in a copy first
+  const flat=art.cloneNode(true);
+  flat.querySelectorAll('p,li,td,th,tr,h1,h2,h3,h4,h5,h6,div,blockquote,pre,br,dt,dd,figcaption').forEach(e=>e.append(' '));
+  const text=(flat.textContent||'');
   const tags=meta('hv:tags').split(',').map(s=>s.trim().replace(/^#/,'')).filter(Boolean);
   const all=new Set(tags.map(lc));
   for(const m of text.matchAll(/(?:^|\s)#([A-Za-z][\w\/-]*)/g))all.add(lc(m[1]));
@@ -401,6 +409,7 @@ function fixLinksForSave(html,dir){
   });
   d.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked?c.setAttribute('checked',''):c.removeAttribute('checked'));
   d.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));
+  d.querySelectorAll('.hv-folded,.hv-fold-hidden,.hv-flash').forEach(e=>e.classList.remove('hv-folded','hv-fold-hidden','hv-flash'));   // reading-view state never reaches the file
   d.querySelectorAll('[class=""]').forEach(e=>e.removeAttribute('class'));
   return d.innerHTML.replace(/<\/(p|h[1-6]|ul|ol|li|blockquote|pre|table|thead|tbody|tr|div|hr)>/g,'</$1>\n').replace(/<hr>/g,'<hr>\n').trim();
 }
@@ -412,7 +421,7 @@ function serializeNote(n){
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(n.name)}</title>
-<meta name="generator" content="HTML Vault">
+<meta name="generator" content="Value HTML">
 <meta name="hv:tags" content="${esc(n.tags.join(', '))}">
 <meta name="hv:created" content="${esc(n.created)}">
 <meta name="hv:updated" content="${esc(n.updated)}">
@@ -592,7 +601,7 @@ async function createNote(full,{body='<p><br></p>',tags=[],open=true}={}){
   obj.mtime=await S.backend.write(obj.path,text);
   const note=parseNote(obj.path,text,obj.mtime);
   S.notes.set(note.path,note);reindex();refreshAll();
-  if(open){await openNote(note.path);$('#title').select()}
+  if(open){if(typeof setReading==='function'&&RD.on)setReading(false,{silent:true});await openNote(note.path);$('#title').select()}   // a new note is for writing
   return note;
 }
 async function deleteNote(path){
@@ -667,6 +676,7 @@ function loadActiveIntoEditor(){
   const n=S.notes.get(S.active);if(!n)return;
   editor.innerHTML=n.body||'<p><br></p>';decorateLinks();
   titleEl.value=n.name;
+  if(typeof readingOnLoad==='function')readingOnLoad();
 }
 async function openNote(path){
   if(path===S.active)return;
@@ -883,6 +893,7 @@ function renderRight(){
     S.dirty=true;flushSave();
   });
   $('#btnDel',box).onclick=()=>deleteNote(S.active);
+  if(typeof readingOnRight==='function')readingOnRight();      // the outline sits at the top of this panel
 }
 $('#right').addEventListener('click',e=>{
   const o=e.target.closest('[data-open]'),c=e.target.closest('[data-create]'),t=e.target.closest('[data-tag]');
@@ -1629,6 +1640,7 @@ async function seedDemo(be){
   editor.addEventListener('click',e=>{if(e.target.matches('input[type=checkbox]'))setTimeout(scheduleSave)});
   requestAnimationFrame(loop);
   initFeatures();
+  initReading();
   showWelcome().then(async()=>{
     // desktop app: go straight back into the last vault
     if(NATIVE){const last=(await hvNative.settings.get()).lastVault;if(last&&await hvNative.vault.exists(last))openNativeVault(last).catch(e=>{console.error(e);toast('Could not reopen last vault')})}
