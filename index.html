@@ -77,7 +77,10 @@ body[data-view="graph"] #right{display:none}
 #toolbar button{padding:2px 8px;min-width:30px}
 #toolbar .sep{width:1px;background:var(--border);margin:0 4px}
 #toolbar input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--border);border-radius:6px;background:none}
-#noteScroll{flex:1;overflow:auto;padding:24px 32px 120px}
+#noteScroll{flex:1;overflow:auto;padding:24px 32px 120px;container-type:inline-size}
+/* narrow note pane (split view with a wide graph or sidebars): smaller title and padding so the title is not clipped */
+@container (max-width:420px){#noteScroll #title{font-size:1.45em}#noteScroll #editor{font-size:15px}}
+@container (max-width:300px){#noteScroll #title{font-size:1.2em}}
 #noteWrap{max-width:46rem;margin:0 auto}
 #title{width:100%;font-size:2em;font-weight:700;background:none;border:none;padding:0 0 .3em;outline:none;border-bottom:1px solid transparent}
 #title:focus{border-bottom-color:var(--border)}
@@ -538,7 +541,9 @@ async function useBackend(be){
   S.cfg.settings.local=false;S.cfg.settings.search='';
   $('#welcome').hidden=true;$('#vaultName').textContent=be.name;
   onVaultOpened(be);
-  G.pos.clear();G.fitted=false;
+  // a freshly opened vault starts from a clean graph: without resetting the signature, reopening the SAME vault
+  // looked "unchanged", skipped the layout step, and left every node at a random spot
+  G.pos.clear();G.fitted=false;G.sig='';G.hover=null;G.hl=null;if(G.anim)stopAnimate();
   buildGraphPanel();
   const first=S.byName.get('welcome')||[...S.notes.values()].sort((a,b)=>b.mtime-a.mtime)[0];
   S.active=null;await openNote(first.path);
@@ -949,13 +954,13 @@ function rebuildGraph(){
   const nodes=[];
   const adj=new Map();for(const id of keep)adj.set(id,new Set());
   for(const e of edges){adj.get(e.a).add(e.b);adj.get(e.b).add(e.a)}
-  const R=Math.max(120,Math.sqrt(keep.size)*30);
+  const R=Math.max(120,Math.sqrt(keep.size)*30);let spawned=0;
   for(const id of keep){
     const d=vis.get(id);let p=G.pos.get(id);
     if(!p){
       let base=null;for(const nb of adj.get(id))if(G.pos.get(nb)){base=G.pos.get(nb);break}
       const a=Math.random()*6.283,r=base?20+Math.random()*30:Math.sqrt(Math.random())*R;
-      p={x:(base?base.x:0)+Math.cos(a)*r,y:(base?base.y:0)+Math.sin(a)*r,vx:0,vy:0};G.pos.set(id,p);
+      p={x:(base?base.x:0)+Math.cos(a)*r,y:(base?base.y:0)+Math.sin(a)*r,vx:0,vy:0};G.pos.set(id,p);spawned++;
     }
     Object.assign(p,{id,label:d.label,kind:d.kind,note:d.note||null,group:d.group||null,deg:adj.get(id).size});
     nodes.push(p);
@@ -979,8 +984,11 @@ function rebuildGraph(){
   keys.forEach((k,i)=>{const a=-Math.PI/2+i/keys.length*Math.PI*2;G.anchors.set(k,{x:Math.cos(a)*ring,y:Math.sin(a)*ring})});
   const sig=[...keep].sort().join('|')+edges.length+'|'+keys.join(',')+gs().separate+gs().colorMode;
   const changed=sig!==G.sig;G.sig=sig;
-  if(changed){
-    const warm=!G.fitted;
+  // belt and braces: if most notes have no position yet (first open, reopening a vault, a reset) the layout
+  // must run and the view must be fitted, whatever the signature says
+  const mostlyNew=nodes.length>0&&spawned>nodes.length*0.5;
+  if(changed||mostlyNew){
+    const warm=!G.fitted||mostlyNew;
     if(warm){G.alpha=1;for(let i=0;i<260;i++)tick(true)}
     G.alpha=Math.max(G.alpha,warm?0.05:0.5);
     if(warm&&G.w){fitGraph()}
