@@ -116,6 +116,16 @@ function updateReadStats() {
   const s = HVFold.readingStats(rdEd().innerText);
   el.textContent = `${s.words.toLocaleString()} words · ~${s.minutes} min`;
 }
+/** Show which mode you are in: the switch, a colored stripe along the top of the pane, and a short hint. */
+function syncModeBar() {
+  const on = RD.on, edit = document.getElementById('mdEdit'), read = document.getElementById('mdRead');
+  if (!edit || !read) return;
+  edit.classList.toggle('on', !on); edit.setAttribute('aria-pressed', String(!on));
+  read.classList.toggle('on', on); read.setAttribute('aria-pressed', String(on));
+  const pane = document.getElementById('notePane');
+  pane.classList.toggle('mode-read', on); pane.classList.toggle('mode-edit', !on);
+  document.getElementById('mdHint').textContent = on ? 'Reading · read-only · Ctrl+E to edit' : 'Editing · autosaves · Ctrl+E to read';
+}
 function setReading(on, { silent = false } = {}) {
   if (on && !RD.on) flushSave();                          // save what you typed before locking the page
   RD.on = on;
@@ -124,7 +134,7 @@ function setReading(on, { silent = false } = {}) {
   document.getElementById('title').readOnly = on;
   if (!on) unfoldAll();                                   // never edit with hidden sections
   if (typeof closeLP === 'function') closeLP();
-  updateReadStats(); renderOutline();
+  syncModeBar(); updateReadStats(); renderOutline();
   try { localStorage.setItem('hv:reading', on ? '1' : '0'); } catch {}
   if (!silent) toast(on ? 'Reading mode · Ctrl+E to edit' : 'Editing', 1400);
 }
@@ -145,7 +155,6 @@ function initReading() {
   const bar = document.createElement('div');
   bar.id = 'readbar';
   bar.innerHTML = `
-    <button id="rdEdit" title="Back to editing (Ctrl+E)">✎ Edit</button><span class="sep"></span>
     <button id="rdSmaller" title="Smaller text">A−</button><button id="rdBigger" title="Larger text">A+</button>
     <select id="rdWidth" title="Line width"><option value="narrow">Narrow</option><option value="medium">Medium</option><option value="wide">Wide</option><option value="full">Full</option></select>
     <select id="rdLh" title="Line spacing"><option value="1.45">Tight</option><option value="1.7">Normal</option><option value="1.95">Relaxed</option></select>
@@ -158,17 +167,28 @@ function initReading() {
   const pop = document.createElement('div'); pop.id = 'outlinePop'; pop.hidden = true;
   document.body.appendChild(pop);
 
-  // edit-mode toolbar gets a way in
+  // The Edit | Read switch lives in its own row at the top of the note pane, so it is in exactly the same
+  // place in both modes (the toolbar below it wraps and the reader bar differs, so neither could hold it).
+  const mb = document.createElement('div');
+  mb.id = 'modebar';
+  mb.innerHTML = `<div class="modeswitch" role="group" aria-label="Mode">
+      <button id="mdEdit" type="button" title="Edit this note (Ctrl+E)">✎ Edit</button>
+      <button id="mdRead" type="button" title="Read this note (Ctrl+E)">📖 Read</button></div>
+    <span id="mdHint"></span>`;
+  document.getElementById('notePane').insertBefore(mb, document.getElementById('toolbar'));
+
+  // the writing toolbar gets an outline button
   const tb = document.getElementById('toolbar');
   const sep = document.createElement('span'); sep.className = 'sep'; tb.appendChild(sep);
-  for (const [label, title, fn] of [['📖 Read', 'Reading mode (Ctrl+E)', () => setReading(true)], ['☰', 'Outline of this note', b => openOutlinePop(b)]]) {
+  for (const [label, title, fn] of [['☰', 'Outline of this note', b => openOutlinePop(b)]]) {
     const b = document.createElement('button'); b.textContent = label; b.title = title;
     b.addEventListener('mousedown', e => e.preventDefault());
     b.addEventListener('click', () => fn(b)); tb.appendChild(b);
   }
 
   const $id = id => document.getElementById(id);
-  $id('rdEdit').onclick = () => setReading(false);
+  $id('mdEdit').onclick = () => setReading(false);
+  $id('mdRead').onclick = () => setReading(true);
   $id('rdSmaller').onclick = () => { RD.prefs.size = Math.max(13, RD.prefs.size - 1); applyReadPrefs(); };
   $id('rdBigger').onclick = () => { RD.prefs.size = Math.min(26, RD.prefs.size + 1); applyReadPrefs(); };
   $id('rdWidth').onchange = e => { RD.prefs.width = e.target.value; applyReadPrefs(); };

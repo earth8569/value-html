@@ -92,3 +92,20 @@ body.reading #editor :is(h1,h2,h3,h4).hv-folded::after{content:" ⋯";color:var(
 .ol-empty{color:var(--muted);font-size:12px;padding:2px 6px}
 #outlinePop{position:fixed;z-index:70;width:min(340px,92vw);max-height:60vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px #0009;padding:6px}
 #outlinePop[hidden]{display:none}
+
+/* ---------------------------------------------------------------- Edit | Read switch */
+:root{--mode-edit:#60a5fa;--on-edit:#0b1220;--mode-read:#34d399;--on-read:#052e1b}
+:root[data-theme="light"]{--mode-edit:#2563eb;--on-edit:#ffffff;--mode-read:#047857;--on-read:#ffffff}
+#modebar{display:flex;align-items:center;gap:12px;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--border);border-top:3px solid var(--border)}
+#notePane.mode-edit #modebar{border-top-color:var(--mode-edit)}
+#notePane.mode-read #modebar{border-top-color:var(--mode-read)}
+.modeswitch{display:inline-flex;flex:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--bg)}
+.modeswitch button{border:0;border-radius:0;padding:4px 16px;font-weight:600;background:transparent;white-space:nowrap}
+.modeswitch button+button{border-left:1px solid var(--border)}
+#mdEdit{color:var(--mode-edit)}
+#mdRead{color:var(--mode-read)}
+#mdEdit:hover:not(.on){background:color-mix(in srgb,var(--mode-edit) 16%,transparent)}
+#mdRead:hover:not(.on){background:color-mix(in srgb,var(--mode-read) 16%,transparent)}
+#mdEdit.on{background:var(--mode-edit);color:var(--on-edit)}
+#mdRead.on{background:var(--mode-read);color:var(--on-read)}
+#mdHint{flex:1;min-width:0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

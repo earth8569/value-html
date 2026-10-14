@@ -134,7 +134,11 @@ The replay uses each note's creation date. When you [import a folder](#import-fr
 
 ## Reading long notes
 
-Long notes are hard to read in an editor, so there is a reading mode. Press **`Ctrl+E`** (or click **📖 Read**) to switch between writing and reading.
+Long notes are hard to read in an editor, so there is a reading mode. The **Edit | Read** switch at the top of every note changes between the two; **`Ctrl+E`** does the same from the keyboard.
+
+![The Edit | Read switch in both modes: Edit is blue, Read is green, and they never move](docs/images/edit-read-switch.png)
+
+The switch stays in exactly the same place in both modes. The mode you are in is lit (**Edit** in blue, **Read** in green), a matching colored stripe runs along the top of the note, and a short hint underneath tells you what is happening ("Editing · autosaves", "Reading · read-only").
 
 ![Reading mode: reader bar, folded sections and the outline on the right](docs/images/reading-mode.png)
 
