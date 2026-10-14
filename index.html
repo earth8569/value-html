@@ -870,7 +870,9 @@ function resizeGraph(){
   G.w=r.width;G.h=r.height;cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);
   if(first||!G.fitted){G.v.x=G.w/2;G.v.y=G.h/2;if(G.nodes.length)fitGraph()}
   else{G.v.x+=dw/2;G.v.y+=dh/2}      // keep what you were looking at centred while the pane is resized
-  G.dirty=true;
+  // Setting canvas.width clears it. Redraw right now (this runs just before paint) instead of waiting for
+  // the next animation frame, otherwise every resize step paints one blank frame and the graph flickers.
+  draw();G.dirty=false;
 }
 new ResizeObserver(resizeGraph).observe($('#graphPane'));
 
@@ -1266,8 +1268,14 @@ $('#viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if
   sp.addEventListener('pointerdown',e=>{
     if(e.button!==0)return;
     e.preventDefault();sp.classList.add('drag');document.body.classList.add('resizing');
-    const move=ev=>{const r=center.getBoundingClientRect();pct=apply((ev.clientX-r.left)/r.width*100)};
+    let raf=0,lastX=e.clientX;       // one layout change per frame, however fast the mouse reports
+    const move=ev=>{
+      lastX=ev.clientX;if(raf)return;
+      raf=requestAnimationFrame(()=>{raf=0;const r=center.getBoundingClientRect();pct=apply((lastX-r.left)/r.width*100)});
+    };
     const up=()=>{
+      if(raf){cancelAnimationFrame(raf);raf=0}
+      const r=center.getBoundingClientRect();pct=apply((lastX-r.left)/r.width*100);   // land exactly where the mouse was released
       sp.classList.remove('drag');document.body.classList.remove('resizing');
       removeEventListener('pointermove',move);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);save();
     };
