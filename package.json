@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/lib.test.js",
+    "test": "node --test test/lib.test.js test/replay.test.js",
     "icon": "node scripts/make-icon.js",
     "dist": "electron-builder --win nsis portable"
   },

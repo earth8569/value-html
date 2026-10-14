@@ -145,7 +145,11 @@ handle('import:md', async () => {
     if (!/\.md$/i.test(name) || out.length >= 5000) return;
     const st = await fsp.stat(full);
     if (st.size > 5e6) return;
-    out.push({ path: path.relative(base, full).split(path.sep).join('/'), text: await fsp.readFile(full, 'utf8') });
+    out.push({
+      path: path.relative(base, full).split(path.sep).join('/'), text: await fsp.readFile(full, 'utf8'),
+      // keep the real dates so the graph replay can show the vault growing over time
+      created: new Date(st.birthtimeMs || st.mtimeMs).toISOString(), modified: new Date(st.mtimeMs).toISOString(),
+    });
   });
   return out;
 });
