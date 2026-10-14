@@ -109,6 +109,9 @@ body[data-view="graph"] #right{display:none}
 #ganim select{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 4px}
 #aCount{font-size:12px;color:var(--muted);min-width:70px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 #adate{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:1;font-size:46px;font-weight:700;letter-spacing:3px;color:var(--fg);opacity:.17;pointer-events:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+#ganim,#adate{transition:opacity .65s ease}
+#ganim.closing{opacity:0;pointer-events:none}
+#adate.closing{opacity:0}
 #graphPane.animating #glegend,#graphPane.animating #ginfo,#graphPane.animating #glocal{display:none}
 #glocal{position:absolute;top:48px;left:10px;z-index:2;display:flex;gap:10px;align-items:center;background:color-mix(in srgb,var(--accent) 22%,var(--panel));border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:12.5px;max-width:calc(100% - 330px)}
 #glocal button{padding:1px 8px;font-size:12px;flex:none}
@@ -1066,14 +1069,29 @@ function startAnimate(){
 }
 function stopAnimate(){
   if(!G.anim)return;
-  G.anim=null;$('#graphPane').classList.remove('animating');$('#ganim').hidden=true;$('#adate').hidden=true;
-  G.alpha=Math.max(G.alpha,0.3);G.dirty=true;                  // a gentle settle as the normal graph returns
+  G.anim=null;$('#graphPane').classList.remove('animating');
+  for(const id of ['#ganim','#adate']){$(id).hidden=true;$(id).classList.remove('closing')}
+  G.alpha=Math.max(G.alpha,0.12);                              // a barely-there settle as the normal graph returns
+  G.labelIn=0;G.labelInAt=performance.now();G.dirty=true;      // names fade back in instead of popping
+}
+/* When the replay finishes by itself it holds for a moment (the last pulses finish), then the controls and
+   the date caption fade out and the normal graph takes over. Any interaction cancels the auto-close. */
+const REPLAY_HOLD_MS=1500,REPLAY_FADE_MS=650;
+function cancelReplayClose(){
+  const A=G.anim;if(!A)return;
+  A.endAt=0;
+  if(A.closing){A.closing=false;$('#ganim').classList.remove('closing');$('#adate').classList.remove('closing')}
 }
 function stepAnim(now){
   const A=G.anim,dt=Math.min(0.1,(now-A.last)/1000);A.last=now;
   if(A.playing&&!A.scrub&&A.t<A.N){
     A.t=Math.min(A.N,A.t+dt*A.base*A.mult);
-    if(A.t>=A.N){A.playing=false}
+    if(A.t>=A.N){A.playing=false;A.endAt=now}                  // finished on its own: start the auto-close clock
+  }
+  if(A.endAt){
+    const since=now-A.endAt;
+    if(since>REPLAY_HOLD_MS&&!A.closing){A.closing=true;$('#ganim').classList.add('closing');$('#adate').classList.add('closing')}
+    if(since>REPLAY_HOLD_MS+REPLAY_FADE_MS){stopAnimate();return}
   }
   const shown=Math.min(A.N,Math.floor(A.t)),h=A.hud;
   const label=A.t>=A.N?'all '+A.N:shown+' / '+A.N;
@@ -1141,10 +1159,10 @@ function drawAnim(){
   }
   G.labelRects=placed;ctx.globalAlpha=1;
 }
-$('#aPlay').onclick=()=>{const A=G.anim;if(!A)return;if(A.t>=A.N){A.t=0}A.playing=!A.playing||A.t===0;A.last=performance.now()};
-$('#aReplay').onclick=()=>{const A=G.anim;if(A){A.t=0;A.playing=true;A.last=performance.now()}};
+$('#aPlay').onclick=()=>{const A=G.anim;if(!A)return;cancelReplayClose();if(A.t>=A.N){A.t=0}A.playing=!A.playing||A.t===0;A.last=performance.now()};
+$('#aReplay').onclick=()=>{const A=G.anim;if(A){cancelReplayClose();A.t=0;A.playing=true;A.last=performance.now()}};
 $('#aSpeed').onchange=e=>{if(G.anim)G.anim.mult=+e.target.value||1};
-$('#aScrub').addEventListener('input',e=>{const A=G.anim;if(A){A.scrub=true;A.t=+e.target.value;G.dirty=true}});
+$('#aScrub').addEventListener('input',e=>{const A=G.anim;if(A){cancelReplayClose();A.scrub=true;A.t=+e.target.value;G.dirty=true}});
 $('#aScrub').addEventListener('change',()=>{if(G.anim){G.anim.scrub=false;G.anim.last=performance.now()}});
 $('#aClose').onclick=stopAnimate;
 addEventListener('keydown',e=>{
@@ -1212,7 +1230,7 @@ function draw(){
     const isRel=!isMain&&((hov&&nb.has(n.id))||(!hov&&hl&&hl.has(n.id)));
     if(!isMain&&!isRel&&(hov||hl))continue;          // while hovering/highlighting, hide unrelated names
     if(isRel&&v.k<REL_LABEL_MIN_ZOOM)continue;       // far out, only the hovered note is named
-    const al=isMain?1:isRel?0.95:vis;
+    const al=(isMain?1:isRel?0.95:vis)*(G.labelIn===undefined?1:G.labelIn);     // labelIn: fade-in after a replay
     if(!isMain&&(al<=0.02||placed.length>=MAXL))continue;
     const text=!isMain&&n.label.length>30?n.label.slice(0,29)+'…':n.label;
     const w=isMain?w12(n):Math.min(w12(n),w12({label:text}));
@@ -1232,6 +1250,7 @@ function draw(){
 }
 function loop(){
   if(G.anim)stepAnim(performance.now());                      // layout stays frozen during a replay
+  if(G.labelIn!==undefined&&G.labelIn<1){G.labelIn=Math.min(1,(performance.now()-G.labelInAt)/600);G.dirty=true}
   const moving=!G.anim&&(G.alpha>0.002||G.alphaTarget>0);
   if(moving&&G.nodes.length){tick();G.dirty=true}
   if(G.dirty&&G.w){draw();G.dirty=false}
