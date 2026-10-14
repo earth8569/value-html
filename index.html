@@ -94,6 +94,8 @@ body[data-view="graph"] #right{display:none}
 #gtools{position:absolute;top:10px;left:10px;display:flex;gap:6px;z-index:2}
 #gtools button{background:color-mix(in srgb,var(--panel) 90%,transparent)}
 #gtools button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#glocal{position:absolute;top:48px;left:10px;z-index:2;display:flex;gap:10px;align-items:center;background:color-mix(in srgb,var(--accent) 22%,var(--panel));border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:12.5px;max-width:calc(100% - 330px)}
+#glocal button{padding:1px 8px;font-size:12px;flex:none}
 #gpanel{position:absolute;top:48px;right:10px;width:290px;max-height:calc(100% - 60px);overflow:auto;background:color-mix(in srgb,var(--panel) 96%,transparent);border:1px solid var(--border);border-radius:10px;padding:4px 12px 10px;z-index:2;box-shadow:0 8px 30px #0006}
 #gpanel details{border-bottom:1px solid var(--border);padding:6px 0}
 #gpanel details:last-child{border-bottom:none}
@@ -183,7 +185,9 @@ body[data-view="graph"] #right{display:none}
           <button id="gFit" title="Zoom to fit">⤢ Fit</button>
           <button id="gAnim" title="Re-run the layout">▶ Animate</button>
           <button id="gLocal" title="Only show notes near the open note">◎ Local</button>
+          <button id="gReset" title="Back to the full graph: clears the filter, local mode and highlights">↺ Reset</button>
         </div>
+        <div id="glocal" hidden></div>
         <div id="gpanel" hidden></div>
         <div id="glegend"></div>
         <div id="ginfo"></div>
@@ -490,6 +494,8 @@ async function useBackend(be){
   reindex();
   const c=await be.readConfig();
   S.cfg=c?{settings:{...DEFAULT_SETTINGS,...c.settings},groups:(c.groups||[]).map(g=>({...g}))}:{settings:{...DEFAULT_SETTINGS},groups:autoGroups()};
+  // view filters are per-session: a saved Local/filter state made the graph look empty on the next launch
+  S.cfg.settings.local=false;S.cfg.settings.search='';
   $('#welcome').hidden=true;$('#vaultName').textContent=be.name;
   onVaultOpened(be);
   G.pos.clear();G.fitted=false;
@@ -930,8 +936,23 @@ function rebuildGraph(){
     if(warm&&G.w){fitGraph()}
   }
   $('#ginfo').textContent=`${nodes.length} nodes · ${edges.length} links`;
+  // make Local mode impossible to miss: it hides everything except the neighbourhood of the open note
+  const lb=$('#glocal');
+  if(gs().local){
+    const a=S.notes.get(S.active);
+    lb.hidden=false;
+    lb.innerHTML=`<span>◎ Local graph around <b>${esc(a?a.name:'(no note open)')}</b>, ${gs().depth} link${gs().depth>1?'s':''} deep${nodes.length<=1?'. <b>This note has no links.</b>':''}</span><button id="glocalOff">Show whole graph</button>`;
+  }else lb.hidden=true;
   G.dirty=true;
 }
+function resetGraphView(){
+  const s=gs();
+  s.search='';s.local=false;s.showOrphans=true;s.showUnresolved=true;
+  setHighlight(null);
+  buildGraphPanel();saveCfg();rebuildGraph();renderLegend();fitGraph();syncGraphControls();
+}
+$('#glocal').addEventListener('click',e=>{if(e.target.id==='glocalOff'){gs().local=false;saveCfg();syncGraphControls();rebuildGraph();fitGraph()}});
+$('#gReset').onclick=resetGraphView;
 /* cheap path used after an autosave: refresh data, only reheat on structural change */
 const rebuildGraphSoft=()=>rebuildGraph();
 
@@ -1090,7 +1111,7 @@ cv.addEventListener('wheel',e=>{
 },{passive:false});
 function graphClick(n){
   if(n.kind==='note')openNote(n.id);
-  else if(n.kind==='ghost')createNote(n.label);
+  else if(n.kind==='ghost')ask('Create this note?',{message:`“${n.label}” is linked from other notes but doesn't exist yet. Create an empty note with this name?`,confirm:true,ok:'Create'}).then(ok=>{if(ok)createNote(n.label)});
   else if(n.kind==='tag'){fsearch.value='tag:'+n.label;renderSidebar();setView(S.view==='graph'?'split':S.view)}
 }
 $('#gFit').onclick=fitGraph;

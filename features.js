@@ -365,13 +365,24 @@ function closeSettings() { $('#settings').hidden = true; }
 async function importMarkdown(files) {
   if (!files?.length) { toast('No Markdown files found'); return; }
   await flushSave();
-  const made = [];
-  let skipped = 0;
+  const made = [], sensitive = [];
+  let skipped = 0, renamedDupes = 0;
   for (const f of files) {
     const parts = f.path.replace(/\\/g, '/').split('/').filter(Boolean);
-    const name = sanitizeName(parts.pop().replace(/\.md$/i, ''));
+    let name = sanitizeName(parts.pop().replace(/\.md$/i, ''));
+    // never copy credentials into the new vault (it feeds search, AI chat and the local API)
+    if (HVMD.looksSensitive(name, f.text)) { sensitive.push(f.path); continue; }
     const dir = parts.map(sanitizeName).filter(Boolean).join('/');
-    if (!name || S.byName.has(lc(name))) { skipped++; continue; }
+    if (!name) { skipped++; continue; }
+    // note names are unique in a vault: a different note that shares a name gets its folder as a suffix,
+    // while the same note imported before (same folder + name) is left alone
+    const clash = S.byName.get(lc(name));
+    if (clash) {
+      if (clash.dir === dir) { skipped++; continue; }
+      name = `${name} (${dir.split('/').pop() || 'root'})`;
+      if (S.byName.has(lc(name))) { skipped++; continue; }
+      renamedDupes++;
+    }
     const fm = HVMD.frontmatter(f.text);
     // the note title is stored separately, so drop a leading "# Title" that repeats it
     const html = HVMD.toHtml(fm.body).replace(/^\s*<h1>([^<]*)<\/h1>\s*/, (m, t) => (lc(t.trim()) === lc(name) ? '' : m));
@@ -392,7 +403,11 @@ async function importMarkdown(files) {
   reindex();
   if (!S.cfg.groups.length) S.cfg.groups = autoGroups();
   refreshAll();
-  toast(`Imported ${made.length} note${made.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} existing` : ''}`, 4000);
+  toast(`Imported ${made.length} note${made.length === 1 ? '' : 's'}${renamedDupes ? ` (${renamedDupes} renamed with a folder suffix because the name was taken)` : ''}${skipped ? `, ${skipped} already present` : ''}`, 6000);
+  if (sensitive.length) {
+    await ask(`Skipped ${sensitive.length} note${sensitive.length === 1 ? '' : 's'} that look like they contain credentials`, {
+      message: sensitive.join(', ') + '. They were not copied. Review them in the source folder.', confirm: true, ok: 'OK' });
+  }
 }
 
 /* ------------------------------------------------------------ local API */

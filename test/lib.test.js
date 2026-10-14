@@ -107,6 +107,16 @@ test('markdown does not format inside code and escapes html', () => {
   assert.equal(MD.inline('`**x**` <script>'), '<code>**x**</code> &lt;script&gt;');
 });
 
+test('looksSensitive flags credential notes without flagging normal ones', () => {
+  assert.ok(MD.looksSensitive('OKX-API-Credentials-and-Bot-Algo', 'x'));
+  assert.ok(MD.looksSensitive('Notes', 'api_key = abcdefghijklmnop1234'));
+  assert.ok(MD.looksSensitive('Runbook', 'OKX_API_KEY = abcdefghijklmno\nOKX_API_PASSPHRASE = abcdefghijklmn'));
+  assert.ok(MD.looksSensitive('Notes', 'token: "ghp_' + 'a'.repeat(36) + '"'));
+  assert.ok(MD.looksSensitive('Notes', '-----BEGIN RSA PRIVATE KEY-----'));
+  assert.ok(!MD.looksSensitive('Pasta', 'Mix the flour. Tokenomics of the coin is a topic. key = short'));
+  assert.ok(!MD.looksSensitive('Strategy', 'backtest id 3f2a9c1e-77b0-4d1a-9a52 for the run'));
+});
+
 test('frontmatter tags in list, inline and csv forms', () => {
   assert.deepEqual(MD.frontmatter('---\ntags:\n  - a\n  - "#b"\n---\nbody').tags, ['a', 'b']);
   assert.deepEqual(MD.frontmatter('---\ntags: [x, y]\n---\nbody').tags, ['x', 'y']);
