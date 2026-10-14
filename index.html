@@ -1017,6 +1017,7 @@ function nodeColor(n){
   if(n.kind==='ghost')return G.theme.muted;
   return n.group?n.group.color:G.theme.node;
 }
+const REL_LABEL_MIN_ZOOM=0.3;   // below this zoom, hovering names only the hovered note, not its neighbours
 const LABEL_W=new Map();   // label text -> width in px at the 12px label font
 function measureLabel(t){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.font='12px system-ui,sans-serif';const w=ctx.measureText(t).width;ctx.restore();return w}
 function draw(){
@@ -1072,23 +1073,28 @@ function draw(){
   const placed=[],MAXL=400;
   const w12=n=>{const t=n.label;let w=LABEL_W.get(t);if(w===undefined){w=measureLabel(t);LABEL_W.set(t,w)}return w};
   for(const n of order){
-    const p=prio(n),forced=p>=1e7;
-    let al=forced?1:vis;
-    if(!forced&&hov)al*=0.2;else if(!forced&&hl)al*=0.2;
-    if(!forced&&(al<=0.02||placed.length>=MAXL))continue;
-    const text=!forced&&n.label.length>30?n.label.slice(0,29)+'…':n.label;
-    const w=forced?w12(n):Math.min(w12(n),w12({label:text}));
+    // Only the hovered and the open note are always labelled. Linked notes (while hovering) and highlighted
+    // notes are labelled only if there is room, so hovering a hub never turns into a pile of text.
+    const isMain=n===hov||n.id===active;
+    const isRel=!isMain&&((hov&&nb.has(n.id))||(!hov&&hl&&hl.has(n.id)));
+    if(!isMain&&!isRel&&(hov||hl))continue;          // while hovering/highlighting, hide unrelated names
+    if(isRel&&v.k<REL_LABEL_MIN_ZOOM)continue;       // far out, only the hovered note is named
+    const al=isMain?1:isRel?0.95:vis;
+    if(!isMain&&(al<=0.02||placed.length>=MAXL))continue;
+    const text=!isMain&&n.label.length>30?n.label.slice(0,29)+'…':n.label;
+    const w=isMain?w12(n):Math.min(w12(n),w12({label:text}));
     const sx=n.x*v.k+v.x,sy=n.y*v.k+v.y+(nodeR(n)*v.k+3);
     const x0=sx-w/2-3,x1=sx+w/2+3,y0=sy-1,y1=sy+15;
-    if(!forced&&(x1<0||x0>G.w||y1<0||y0>G.h))continue;
+    if(!isMain&&(x1<0||x0>G.w||y1<0||y0>G.h))continue;
     let clash=false;
-    if(!forced)for(const r of placed)if(x0<r[2]&&x1>r[0]&&y0<r[3]&&y1>r[1]){clash=true;break}
+    if(!isMain)for(const r of placed)if(x0<r[2]&&x1>r[0]&&y0<r[3]&&y1>r[1]){clash=true;break}
     if(clash)continue;
     placed.push([x0,y0,x1,y1]);
     ctx.globalAlpha=al;
     ctx.strokeStyle=theme.bg;ctx.strokeText(text,n.x,n.y+nodeR(n)+3/v.k);
     ctx.fillStyle=theme.fg;ctx.fillText(text,n.x,n.y+nodeR(n)+3/v.k);
   }
+  G.labelRects=placed;       // exposed for tests
   ctx.globalAlpha=1;
 }
 function loop(){
