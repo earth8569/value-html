@@ -20,14 +20,12 @@ Your notes stay plain files in a folder you choose: open any of them in a browse
 **Requirements:** Windows 10 or 11 (64-bit).
 
 1. Download from the [latest release](../../releases/latest):
-   - `Value-HTML-Setup-0.2.0.exe`: installer (per user; you choose the folder; adds Start Menu and desktop shortcuts)
-   - `Value-HTML-0.2.0-portable.exe`: no installation, just run it
+   - `Value-HTML-Setup-0.3.0.exe`: installer (per user; you choose the folder; adds Start Menu and desktop shortcuts). Your notes and settings are stored outside the install folder (see [Where your data lives](#where-your-data-lives)), so reinstalling or updating never touches them
+   - `Value-HTML-0.3.0-portable.exe`: no installation, just run it
 2. Check the download if you like: `certutil -hashfile <file> SHA256` and compare with `SHA256SUMS.txt`.
 
 > **The builds are not code-signed.** Windows SmartScreen may warn you: choose **More info, then Run anyway**.
 > **Smart App Control** blocks unsigned apps outright and cannot be bypassed per app. If it stops the installer, [run from source](#build-from-source) instead. It takes two commands.
->
-> The 0.2.0 installer was built before the reading tools (outline, reading mode, folding) and a few fixes described below. To get those, run from source or wait for the next release.
 
 ## Quick start
 
