@@ -547,7 +547,13 @@ async function reloadVault(){
   }
   for(const p of [...S.notes.keys()])if(!seen.has(p)){S.notes.delete(p);changed=true}
   if(!S.notes.has(S.active)){S.active=null;const f=[...S.notes.values()][0];if(f)await openNote(f.path)}
-  if(changed){reindex();refreshAll();toast('Vault reloaded')}
+  if(changed){
+    reindex();
+    // an outside edit (an agent saving a note) must not cut a replay short: refresh the lists now and the
+    // graph as soon as the replay ends
+    if(G.anim){G.pendingRefresh=true;recolor();renderSidebar();renderRight()}
+    else{refreshAll();toast('Vault reloaded')}
+  }
 }
 
 /* ========================================================= note CRUD */
@@ -1049,6 +1055,10 @@ function measureLabel(t){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.font='12px
 const easeOutCubic=x=>1-Math.pow(1-x,3);
 const easeOutBack=x=>{const c=1.70158;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
 function startAnimate(){
+  // One click = one pass. A second click in quick succession (double-click) must not stop or restart it.
+  const clickedAt=performance.now();
+  if(G.animAt&&clickedAt-G.animAt<500)return;
+  G.animAt=clickedAt;
   if(G.anim){stopAnimate();return}
   const nodes=G.nodes;
   if(nodes.length<3){G.alpha=1;G.dirty=true;return}            // nothing to replay: just re-run the layout
@@ -1073,10 +1083,15 @@ function stopAnimate(){
   for(const id of ['#ganim','#adate']){$(id).hidden=true;$(id).classList.remove('closing')}
   G.alpha=Math.max(G.alpha,0.12);                              // a barely-there settle as the normal graph returns
   G.labelIn=0;G.labelInAt=performance.now();G.dirty=true;      // names fade back in instead of popping
+  if(G.pendingRefresh){G.pendingRefresh=false;refreshAll()}    // vault changed while the replay was playing
 }
 /* When the replay finishes by itself it holds for a moment (the last pulses finish), then the controls and
    the date caption fade out and the normal graph takes over. Any interaction cancels the auto-close. */
-const REPLAY_HOLD_MS=1500,REPLAY_FADE_MS=650;
+const REPLAY_HOLD_MS=900,REPLAY_FADE_MS=650;
+// Progress runs a little PAST the last note so its bloom (ring, halo, flashing link, fly-in) plays out in full;
+// stopping the clock at the last note froze the final arrivals half-way through their animation.
+const REPLAY_TAIL_S=1.2;
+const animEnd=A=>A.N+REPLAY_TAIL_S*A.base*A.mult;
 function cancelReplayClose(){
   const A=G.anim;if(!A)return;
   A.endAt=0;
@@ -1084,9 +1099,10 @@ function cancelReplayClose(){
 }
 function stepAnim(now){
   const A=G.anim,dt=Math.min(0.1,(now-A.last)/1000);A.last=now;
-  if(A.playing&&!A.scrub&&A.t<A.N){
-    A.t=Math.min(A.N,A.t+dt*A.base*A.mult);
-    if(A.t>=A.N){A.playing=false;A.endAt=now}                  // finished on its own: start the auto-close clock
+  const end=animEnd(A);
+  if(A.playing&&!A.scrub&&A.t<end){
+    A.t=Math.min(end,A.t+dt*A.base*A.mult);
+    if(A.t>=end){A.playing=false;A.endAt=now}                  // everything has fully bloomed: start the auto-close clock
   }
   if(A.endAt){
     const since=now-A.endAt;
@@ -1099,9 +1115,9 @@ function stepAnim(now){
   const d=shown>0?A.day.get(A.order[shown-1].id):'';
   const dayText=d&&d!=='9999-99-99'?d:'';
   if(h.day!==dayText){h.day=dayText;$('#adate').textContent=dayText}
-  const icon=A.playing?'⏸':(A.t>=A.N?'↻':'▶');
+  const icon=A.playing?'⏸':(A.t>=end?'↻':'▶');
   if(h.icon!==icon){h.icon=icon;$('#aPlay').textContent=icon}
-  if(!A.scrub)$('#aScrub').value=A.t;
+  if(!A.scrub)$('#aScrub').value=Math.min(A.t,A.N);
   G.dirty=true;
 }
 function drawAnim(){
@@ -1115,7 +1131,7 @@ function drawAnim(){
     A.age[i]=age;A.dx[i]=pn?pn.x+(n.x-pn.x)*e:n.x;A.dy[i]=pn?pn.y+(n.y-pn.y)*e:n.y;
   }
   // links: settled ones in one batch, brand-new ones flash in the accent colour and cool down
-  ctx.lineWidth=s.linkWidth/sk;ctx.strokeStyle=theme.muted;ctx.globalAlpha=0.35;ctx.beginPath();
+  ctx.lineWidth=s.linkWidth/sk;ctx.strokeStyle=theme.muted;ctx.globalAlpha=0.4;ctx.beginPath();   // same as the normal graph, so the hand-off doesn't pop
   const fresh=[];
   for(let k=0;k<A.ei.length;k++){
     const a=A.ei[k][0],b=A.ei[k][1];if(a>=vis||b>=vis)continue;
@@ -1159,10 +1175,16 @@ function drawAnim(){
   }
   G.labelRects=placed;ctx.globalAlpha=1;
 }
-$('#aPlay').onclick=()=>{const A=G.anim;if(!A)return;cancelReplayClose();if(A.t>=A.N){A.t=0}A.playing=!A.playing||A.t===0;A.last=performance.now()};
+$('#aPlay').onclick=()=>{const A=G.anim;if(!A)return;cancelReplayClose();if(A.t>=animEnd(A)-1e-6){A.t=0}A.playing=!A.playing||A.t===0;A.last=performance.now()};
 $('#aReplay').onclick=()=>{const A=G.anim;if(A){cancelReplayClose();A.t=0;A.playing=true;A.last=performance.now()}};
 $('#aSpeed').onchange=e=>{if(G.anim)G.anim.mult=+e.target.value||1};
-$('#aScrub').addEventListener('input',e=>{const A=G.anim;if(A){cancelReplayClose();A.scrub=true;A.t=+e.target.value;G.dirty=true}});
+$('#aScrub').addEventListener('input',e=>{
+  const A=G.anim;if(!A)return;
+  cancelReplayClose();A.scrub=true;
+  const v=+e.target.value;
+  A.t=v>=A.N-0.05?animEnd(A):v;           // the far end of the slider means "everything, fully settled"
+  G.dirty=true;
+});
 $('#aScrub').addEventListener('change',()=>{if(G.anim){G.anim.scrub=false;G.anim.last=performance.now()}});
 $('#aClose').onclick=stopAnimate;
 addEventListener('keydown',e=>{
