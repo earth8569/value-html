@@ -1004,6 +1004,8 @@ function nodeColor(n){
   if(n.kind==='ghost')return G.theme.muted;
   return n.group?n.group.color:G.theme.node;
 }
+const LABEL_W=new Map();   // label text -> width in px at the 12px label font
+function measureLabel(t){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.font='12px system-ui,sans-serif';const w=ctx.measureText(t).width;ctx.restore();return w}
 function draw(){
   const dpr=devicePixelRatio||1,{v,theme}=G,s=gs();
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,G.w,G.h);
@@ -1045,16 +1047,34 @@ function draw(){
     }
   }
   // labels
-  const fs=12/v.k,thr=s.labelThreshold;
+  // Labels are placed greedily in screen space, most important first (hovered / open / highlighted,
+  // then by number of links). A label that would overlap one already placed is skipped, so a dense
+  // graph shows a few readable names and reveals more as you zoom in.
+  const thr=s.labelThreshold,vis=clamp((v.k-thr*0.3)/0.35,0,1);
+  const fs=12/v.k;
   ctx.font=`${fs}px system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
-  const base=clamp((v.k-thr*0.6)/0.5,0,1);
-  for(const n of G.nodes){
-    let al=base;
-    if(n===hov||n.id===active)al=1;else if(hov&&nb.has(n.id))al=Math.max(al,0.85);else if(hov)al*=0.2;
-    else if(hl)al=hl.has(n.id)?1:al*0.2;
-    if(al<=0.02)continue;
-    ctx.globalAlpha=al;ctx.fillStyle=theme.fg;
-    ctx.fillText(n.label,n.x,n.y+nodeR(n)+3/v.k);
+  ctx.lineJoin='round';ctx.lineWidth=3.5/v.k;
+  const prio=n=>n===hov||n.id===active?1e9:(hov&&nb.has(n.id)?1e8+n.deg:(hl&&hl.has(n.id)?1e7+n.deg:n.deg));
+  const order=G.nodes.slice().sort((a,b)=>prio(b)-prio(a));
+  const placed=[],MAXL=400;
+  const w12=n=>{const t=n.label;let w=LABEL_W.get(t);if(w===undefined){w=measureLabel(t);LABEL_W.set(t,w)}return w};
+  for(const n of order){
+    const p=prio(n),forced=p>=1e7;
+    let al=forced?1:vis;
+    if(!forced&&hov)al*=0.2;else if(!forced&&hl)al*=0.2;
+    if(!forced&&(al<=0.02||placed.length>=MAXL))continue;
+    const text=!forced&&n.label.length>30?n.label.slice(0,29)+'…':n.label;
+    const w=forced?w12(n):Math.min(w12(n),w12({label:text}));
+    const sx=n.x*v.k+v.x,sy=n.y*v.k+v.y+(nodeR(n)*v.k+3);
+    const x0=sx-w/2-3,x1=sx+w/2+3,y0=sy-1,y1=sy+15;
+    if(!forced&&(x1<0||x0>G.w||y1<0||y0>G.h))continue;
+    let clash=false;
+    if(!forced)for(const r of placed)if(x0<r[2]&&x1>r[0]&&y0<r[3]&&y1>r[1]){clash=true;break}
+    if(clash)continue;
+    placed.push([x0,y0,x1,y1]);
+    ctx.globalAlpha=al;
+    ctx.strokeStyle=theme.bg;ctx.strokeText(text,n.x,n.y+nodeR(n)+3/v.k);
+    ctx.fillStyle=theme.fg;ctx.fillText(text,n.x,n.y+nodeR(n)+3/v.k);
   }
   ctx.globalAlpha=1;
 }
