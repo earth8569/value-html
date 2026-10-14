@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/lib.test.js test/replay.test.js",
+    "test": "node --test test/lib.test.js test/replay.test.js test/fold.test.js",
     "icon": "node scripts/make-icon.js",
     "dist": "electron-builder --win nsis portable"
   },
@@ -22,6 +22,7 @@
       "preload.js",
       "index.html",
       "features.js",
+      "reading.js",
       "features.css",
       "lib/**",
       "assets/**",

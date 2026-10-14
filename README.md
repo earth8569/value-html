@@ -16,6 +16,7 @@ It is a desktop app (Electron); the same `index.html` also runs in Chrome/Edge a
 - **Color groups**: a query plus a color (`tag:#idea`, `path:Projects`, `file:name`), shown in the graph, the file list and a legend; optional *Separate groups into clusters*
 - **Auto communities**: Louvain community detection colors the graph by discovered clusters, with a cohesion score per cluster
 - **Animate (replay)**: watch your vault grow. Notes appear in the order they were created, each blooming out of the note it links to, with a date caption, pulse rings, play/pause, speed and a scrubber. Imports keep the source files' real dates so the timeline is meaningful (Shift-click Animate re-runs the layout instead)
+- **Reading long notes** (`Ctrl+E` toggles reading mode): an **outline** of the note's headings that follows your scroll position (click to jump; also a pop-up for narrow windows), a distraction-free **reading mode** with font size, width, line spacing, serif and sepia options and a word count / reading time, **foldable sections** (click the arrow beside a heading, or Fold all / Unfold all), and easier **tables** (sticky header row, striped rows, readable columns). Folding and the outline are view-only and never written to your files
 - **Insights**: surprising cross-cluster links, isolated notes, sparse clusters and bridge notes, each highlightable in the graph
 - **Related notes** in the sidebar, ranked by direct links, shared tags, common neighbours (Adamic-Adar) and same folder
 
