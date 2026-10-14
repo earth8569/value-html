@@ -387,7 +387,11 @@ function parseNote(path,html,mtime){
       }}
     if(l)links.add(l);
   });
-  const text=(art.textContent||'');
+  // plain text for search and AI context: textContent alone glues table cells and list items together
+  // ("DayCityPlan"), so put a space after every block-level element in a copy first
+  const flat=art.cloneNode(true);
+  flat.querySelectorAll('p,li,td,th,tr,h1,h2,h3,h4,h5,h6,div,blockquote,pre,br,dt,dd,figcaption').forEach(e=>e.append(' '));
+  const text=(flat.textContent||'');
   const tags=meta('hv:tags').split(',').map(s=>s.trim().replace(/^#/,'')).filter(Boolean);
   const all=new Set(tags.map(lc));
   for(const m of text.matchAll(/(?:^|\s)#([A-Za-z][\w\/-]*)/g))all.add(lc(m[1]));
@@ -417,7 +421,7 @@ function serializeNote(n){
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(n.name)}</title>
-<meta name="generator" content="HTML Vault">
+<meta name="generator" content="Value HTML">
 <meta name="hv:tags" content="${esc(n.tags.join(', '))}">
 <meta name="hv:created" content="${esc(n.created)}">
 <meta name="hv:updated" content="${esc(n.updated)}">
